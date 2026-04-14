@@ -1,0 +1,79 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/qshield-common",
+    "crates/qshield-core",
+    "crates/qshield-proxy",
+    "crates/qshield-vault-api",
+    "crates/qshield-auth",
+    "bindings/python",
+    "bindings/node",
+    "bindings/wasm",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Asman Mirza <rambo007.am@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/asman1337/qshield"
+rust-version = "1.94"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Web framework
+axum = { version = "0.8", features = ["macros"] }
+tower = { version = "0.5" }
+tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging & tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.29"
+opentelemetry = "0.27"
+opentelemetry_sdk = "0.27"
+opentelemetry-otlp = "0.27"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "migrate"] }
+
+# IDs & time
+uuid = { version = "1", features = ["v4", "v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Crypto (classical helpers)
+rand = "0.9"
+rand_core = "0.9"
+zeroize = { version = "1", features = ["derive"] }
+subtle = "2"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Config
+config = "0.15"
+dotenvy = "0.15"
+
+# Workspace crates
+qshield-common = { path = "crates/qshield-common" }
+qshield-core   = { path = "crates/qshield-core" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true

@@ -1,0 +1,45 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node / pnpm
+node_modules/
+.pnp
+.pnp.js
+pnpm-lock.yaml
+dist/
+.next/
+out/
+
+# Env & secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tauri
+apps/vault-desktop/src-tauri/target/
+
+# SQLx offline cache (commit if you want offline type-checking in CI)
+.sqlx/
+
+# Coverage
+lcov.info
+tarpaulin-report.html
+
+# Cargo audit
+.cargo/advisory-db/

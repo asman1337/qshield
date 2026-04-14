@@ -1,0 +1,31 @@
+﻿[package]
+name = "qshield-vault-api"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Zero-knowledge PQC-first password and secrets vault backend"
+
+[[bin]]
+name = "qshield-vault-api"
+path = "src/main.rs"
+
+[dependencies]
+qshield-common.workspace = true
+qshield-core.workspace = true
+tokio.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+config.workspace = true
+dotenvy.workspace = true
+thiserror.workspace = true

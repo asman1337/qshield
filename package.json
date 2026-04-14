@@ -1,0 +1,18 @@
+﻿{
+  "name": "qshield",
+  "private": true,
+  "version": "0.1.0",
+  "description": "QShield monorepo — post-quantum cryptography platform",
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "dev:vault": "pnpm --filter vault-web dev",
+    "dev:auth-dashboard": "pnpm --filter auth-dashboard dev"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}

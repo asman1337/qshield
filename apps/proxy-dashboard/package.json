@@ -1,0 +1,12 @@
+﻿{
+  "name": "proxy-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proxy analytics UI (QS-213) — not yet scaffolded",
+  "scripts": {
+    "build": "echo 'Not implemented yet'",
+    "lint": "echo 'Not implemented yet'",
+    "typecheck": "echo 'Not implemented yet'",
+    "test": "echo 'Not implemented yet'"
+  }
+}

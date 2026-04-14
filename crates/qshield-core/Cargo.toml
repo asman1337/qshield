@@ -1,0 +1,31 @@
+﻿[package]
+name = "qshield-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Post-quantum cryptography primitives: ML-KEM, ML-DSA, hybrid modes"
+
+[dependencies]
+qshield-common.workspace = true
+rand.workspace = true
+rand_core.workspace = true
+zeroize.workspace = true
+subtle.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+hex = "0.4"
+
+[[bench]]
+name = "kem"
+harness = false
+
+[[bench]]
+name = "dsa"
+harness = false

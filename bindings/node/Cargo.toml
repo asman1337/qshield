@@ -1,0 +1,19 @@
+﻿[package]
+name = "qshield-node"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Node.js / TypeScript bindings for qshield-core via NAPI-RS (QS-110)"
+
+[lib]
+name = "qshield_node"
+crate-type = ["cdylib"]
+
+[dependencies]
+qshield-core.workspace = true
+qshield-common.workspace = true
+# napi = { version = "2", features = ["napi6"] }  # uncomment in QS-110
+# napi-derive = "2"

@@ -1,0 +1,18 @@
+﻿[package]
+name = "qshield-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Python bindings for qshield-core via PyO3 (QS-109)"
+
+[lib]
+name = "qshield"
+crate-type = ["cdylib"]
+
+[dependencies]
+qshield-core.workspace = true
+qshield-common.workspace = true
+# pyo3 = { version = "0.22", features = ["extension-module"] }  # uncomment in QS-109

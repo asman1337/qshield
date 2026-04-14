@@ -1,0 +1,19 @@
+﻿[package]
+name = "qshield-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "WASM build of qshield-core for browser and extension use (QS-117)"
+
+[lib]
+name = "qshield_wasm"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+qshield-core.workspace = true
+qshield-common.workspace = true
+# wasm-bindgen = "0.2"           # uncomment in QS-117
+# getrandom = { version = "0.2", features = ["js"] }

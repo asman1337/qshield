@@ -1,0 +1,12 @@
+﻿{
+  "name": "vault-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Manifest V3 browser extension (QS-312) — not yet scaffolded",
+  "scripts": {
+    "build": "echo 'Not implemented yet'",
+    "lint": "echo 'Not implemented yet'",
+    "typecheck": "echo 'Not implemented yet'",
+    "test": "echo 'Not implemented yet'"
+  }
+}

@@ -1,0 +1,36 @@
+# deny crates with known security advisories
+[advisories]
+version = 2
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = []
+
+# deny duplicate versions of the same crate where possible
+[bans]
+version = 2
+multiple-versions = "warn"
+wildcards = "deny"
+
+# deny non-OSI-approved or non-FSF-approved licenses
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "ISC",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "MPL-2.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "OpenSSL",
+]
+exceptions = []
+
+[sources]
+version = 2
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

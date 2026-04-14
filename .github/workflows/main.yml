@@ -1,0 +1,107 @@
+name: Main
+
+on:
+  push:
+    branches: [main]
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    name: Quality gate
+    uses: ./.github/workflows/pr-check.yml
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: qshield
+          POSTGRES_PASSWORD: qshield_dev
+          POSTGRES_DB: qshield_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qshield"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://qshield:qshield_dev@localhost:5432/qshield_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run integration tests
+        run: cargo test --workspace --test '*'
+
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Generate coverage (qshield-core target ≥80%)
+        run: >
+          cargo tarpaulin
+          --packages qshield-core qshield-common
+          --out Xml
+          --output-dir coverage/
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/cobertura.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  docker-build:
+    name: Docker build check
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        service: [qshield-proxy, qshield-vault-api, qshield-auth]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.${{ matrix.service }}
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
