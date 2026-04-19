@@ -40,9 +40,9 @@ anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-opentelemetry = "0.29"
-opentelemetry = "0.27"
-opentelemetry_sdk = "0.27"
-opentelemetry-otlp = "0.27"
+opentelemetry = "0.28"
+opentelemetry_sdk = "0.28"
+opentelemetry-otlp = "0.28"
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "migrate"] }

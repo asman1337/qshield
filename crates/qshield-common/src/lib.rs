@@ -13,6 +13,7 @@ pub mod error;
 pub mod id;
 pub mod logging;
 pub mod redacted;
+pub mod telemetry;
 
 pub use error::QShieldError;
 pub use id::new_id;
