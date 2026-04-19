@@ -2437,6 +2437,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "hkdf",
+ "libc",
  "ml-dsa",
  "ml-kem",
  "qshield-common",
