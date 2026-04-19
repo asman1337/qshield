@@ -29,7 +29,7 @@ pub fn mlock_best_effort(ptr: *const u8, len: usize) {
     use std::ffi::c_void;
 
     // SAFETY: sysconf is always safe; result is a page size power-of-2.
-    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
+    let page_size = usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).unwrap_or(4096);
     let addr = (ptr as usize) & !(page_size - 1); // round down to page boundary
     let end = ptr as usize + len;
     let locked_len = end.saturating_sub(addr);
