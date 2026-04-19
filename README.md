@@ -204,10 +204,6 @@ QShield/
 │   ├── vault-mobile/      ← Flutter mobile app
 │   └── auth-dashboard/    ← Auth admin dashboard
 │
-├── docs/
-│   ├── specs/             ← Spec sheets (QS-0XX through QS-5XX)
-│   └── qshield_master_blueprint.html ← visual product blueprint
-│
 └── tests/                 ← integration tests (cross-crate)
 ```
 

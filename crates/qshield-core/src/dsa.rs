@@ -6,11 +6,13 @@
 
 use std::fmt;
 
+use getrandom::SysRng;
+use getrandom::rand_core::UnwrapErr;
 use ml_dsa::{
-    EncodedSignature, EncodedSigningKey, EncodedVerifyingKey, KeyGen, KeyPair, MlDsa44, MlDsa65,
-    MlDsa87, MlDsaParams, Signature, SigningKey, VerifyingKey, signature::Verifier,
+    EncodedSignature, EncodedVerifyingKey, ExpandedSigningKey, ExpandedSigningKeyBytes, KeyGen,
+    MlDsa44, MlDsa65, MlDsa87, MlDsaParams, Signature, SigningKey, VerifyingKey,
+    signature::{Keypair, Verifier},
 };
-use rand_core::OsRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use qshield_common::QShieldError;
@@ -70,9 +72,9 @@ pub struct DsaSignature {
 
 #[allow(clippy::large_enum_variant)]
 enum KpInner {
-    Dsa44(KeyPair<MlDsa44>),
-    Dsa65(KeyPair<MlDsa65>),
-    Dsa87(KeyPair<MlDsa87>),
+    Dsa44(SigningKey<MlDsa44>),
+    Dsa65(SigningKey<MlDsa65>),
+    Dsa87(SigningKey<MlDsa87>),
 }
 
 // -- Drop / zeroize --------------------------------------------------------------------------
@@ -156,9 +158,9 @@ impl DsaKeyPair {
     #[must_use]
     pub fn verifying_key(&self) -> DsaVerifyingKey {
         let bytes = match self.inner.as_ref().expect("DsaKeyPair already zeroized") {
-            KpInner::Dsa44(kp) => vk_to_bytes(kp.verifying_key()),
-            KpInner::Dsa65(kp) => vk_to_bytes(kp.verifying_key()),
-            KpInner::Dsa87(kp) => vk_to_bytes(kp.verifying_key()),
+            KpInner::Dsa44(kp) => vk_to_bytes(&kp.verifying_key()),
+            KpInner::Dsa65(kp) => vk_to_bytes(&kp.verifying_key()),
+            KpInner::Dsa87(kp) => vk_to_bytes(&kp.verifying_key()),
         };
         DsaVerifyingKey {
             bytes,
@@ -179,18 +181,19 @@ impl DsaKeyPair {
     /// # Panics
     /// Panics if the key pair has been zeroized.
     #[must_use]
+    #[allow(deprecated)]
     pub fn signing_key_bytes(&self) -> Vec<u8> {
         match self.inner.as_ref().expect("DsaKeyPair already zeroized") {
             KpInner::Dsa44(kp) => {
-                let enc = kp.signing_key().encode();
+                let enc = kp.signing_key().to_expanded();
                 enc[..].to_vec()
             }
             KpInner::Dsa65(kp) => {
-                let enc = kp.signing_key().encode();
+                let enc = kp.signing_key().to_expanded();
                 enc[..].to_vec()
             }
             KpInner::Dsa87(kp) => {
-                let enc = kp.signing_key().encode();
+                let enc = kp.signing_key().to_expanded();
                 enc[..].to_vec()
             }
         }
@@ -252,7 +255,7 @@ impl DsaSignature {
 /// # Errors
 /// Currently infallible, but returns `Result` for API consistency.
 pub fn dsa_keygen(level: DsaLevel) -> Result<DsaKeyPair, QShieldError> {
-    let mut rng = OsRng;
+    let mut rng = UnwrapErr(SysRng);
     let inner = match level {
         DsaLevel::Dsa44 => KpInner::Dsa44(MlDsa44::key_gen(&mut rng)),
         DsaLevel::Dsa65 => KpInner::Dsa65(MlDsa65::key_gen(&mut rng)),
@@ -275,24 +278,24 @@ pub fn dsa_keygen(level: DsaLevel) -> Result<DsaKeyPair, QShieldError> {
 /// # Panics
 /// Panics if the key pair has been zeroized.
 pub fn dsa_sign(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShieldError> {
-    let mut rng = OsRng;
+    let mut rng = UnwrapErr(SysRng);
     let (bytes, level) = match kp.inner.as_ref().expect("DsaKeyPair already zeroized") {
         KpInner::Dsa44(pair) => {
-            let sk: &SigningKey<MlDsa44> = pair.signing_key();
+            let sk: &ExpandedSigningKey<MlDsa44> = pair.signing_key();
             let sig = sk
                 .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_44 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa44)
         }
         KpInner::Dsa65(pair) => {
-            let sk: &SigningKey<MlDsa65> = pair.signing_key();
+            let sk: &ExpandedSigningKey<MlDsa65> = pair.signing_key();
             let sig = sk
                 .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_65 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa65)
         }
         KpInner::Dsa87(pair) => {
-            let sk: &SigningKey<MlDsa87> = pair.signing_key();
+            let sk: &ExpandedSigningKey<MlDsa87> = pair.signing_key();
             let sig = sk
                 .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_87 })?;
@@ -315,21 +318,21 @@ pub fn dsa_sign_deterministic(
 ) -> Result<DsaSignature, QShieldError> {
     let (bytes, level) = match kp.inner.as_ref().expect("DsaKeyPair already zeroized") {
         KpInner::Dsa44(pair) => {
-            let sk: &SigningKey<MlDsa44> = pair.signing_key();
+            let sk: &ExpandedSigningKey<MlDsa44> = pair.signing_key();
             let sig = sk
                 .sign_deterministic(message, &[])
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_44 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa44)
         }
         KpInner::Dsa65(pair) => {
-            let sk: &SigningKey<MlDsa65> = pair.signing_key();
+            let sk: &ExpandedSigningKey<MlDsa65> = pair.signing_key();
             let sig = sk
                 .sign_deterministic(message, &[])
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_65 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa65)
         }
         KpInner::Dsa87(pair) => {
-            let sk: &SigningKey<MlDsa87> = pair.signing_key();
+            let sk: &ExpandedSigningKey<MlDsa87> = pair.signing_key();
             let sig = sk
                 .sign_deterministic(message, &[])
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_87 })?;
@@ -404,47 +407,48 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// # Errors
 /// Returns `InvalidKeyLength` if `sk_bytes` has the wrong length for `level`,
 /// or `SignatureCreation` on internal failure.
+#[allow(deprecated)]
 pub fn dsa_sign_bytes(
     level: DsaLevel,
     sk_bytes: &[u8],
     message: &[u8],
 ) -> Result<DsaSignature, QShieldError> {
-    let mut rng = OsRng;
+    let mut rng = UnwrapErr(SysRng);
     let (bytes, level) = match level {
         DsaLevel::Dsa44 => {
-            let enc = EncodedSigningKey::<MlDsa44>::try_from(sk_bytes).map_err(|_| {
+            let enc = ExpandedSigningKeyBytes::<MlDsa44>::try_from(sk_bytes).map_err(|_| {
                 QShieldError::InvalidKeyLength {
                     expected: 2560,
                     actual: sk_bytes.len(),
                 }
             })?;
-            let sk = SigningKey::<MlDsa44>::decode(&enc);
+            let sk = ExpandedSigningKey::<MlDsa44>::from_expanded(&enc);
             let sig = sk
                 .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_44 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa44)
         }
         DsaLevel::Dsa65 => {
-            let enc = EncodedSigningKey::<MlDsa65>::try_from(sk_bytes).map_err(|_| {
+            let enc = ExpandedSigningKeyBytes::<MlDsa65>::try_from(sk_bytes).map_err(|_| {
                 QShieldError::InvalidKeyLength {
                     expected: 4032,
                     actual: sk_bytes.len(),
                 }
             })?;
-            let sk = SigningKey::<MlDsa65>::decode(&enc);
+            let sk = ExpandedSigningKey::<MlDsa65>::from_expanded(&enc);
             let sig = sk
                 .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_65 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa65)
         }
         DsaLevel::Dsa87 => {
-            let enc = EncodedSigningKey::<MlDsa87>::try_from(sk_bytes).map_err(|_| {
+            let enc = ExpandedSigningKeyBytes::<MlDsa87>::try_from(sk_bytes).map_err(|_| {
                 QShieldError::InvalidKeyLength {
                     expected: 4896,
                     actual: sk_bytes.len(),
                 }
             })?;
-            let sk = SigningKey::<MlDsa87>::decode(&enc);
+            let sk = ExpandedSigningKey::<MlDsa87>::from_expanded(&enc);
             let sig = sk
                 .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_87 })?;

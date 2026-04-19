@@ -10,16 +10,17 @@ description = "Post-quantum cryptography primitives: ML-KEM, ML-DSA, hybrid mode
 
 [dependencies]
 qshield-common.workspace = true
-# ml-kem and ml-dsa depend on rand_core 0.6; use that version directly here
-# so OsRng is compatible with the PQC crates' trait bounds.
+# ml-kem uses rand_core 0.6; ml-dsa 0.1.x uses rand_core 0.10 (via getrandom 0.4).
+# Both versions coexist -- rand_core 0.6 OsRng is used in kem.rs/hybrid.rs.
 rand_core = { version = "0.6", features = ["getrandom"] }
+getrandom = { version = "0.4", features = ["sys_rng"] }
 zeroize.workspace = true
 subtle.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 ml-kem = { version = "0.2.3", features = ["zeroize"] }
-ml-dsa = { version = "0.0.4", features = ["zeroize"] }
+ml-dsa = { version = "0.1.0-rc.8", features = ["zeroize", "rand_core"] }
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
 ed25519-dalek.workspace = true
 hkdf = "0.12"
