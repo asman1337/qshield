@@ -43,3 +43,15 @@ harness = false
 [[bench]]
 name = "dsa"
 harness = false
+
+[[bench]]
+name = "hybrid"
+harness = false
+
+[[bench]]
+name = "aead"
+harness = false
+
+[[bench]]
+name = "kdf"
+harness = false
