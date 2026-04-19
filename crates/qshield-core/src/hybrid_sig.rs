@@ -247,6 +247,43 @@ pub fn extract_classical_sig(sig: &HybridSignature) -> Result<Vec<u8>, QShieldEr
     Ok(classical_bytes.to_vec())
 }
 
+// ── Serde (QS-113) ────────────────────────────────────────────────────────
+//
+// HybridSignature serializes as a base64-encoded QSKE envelope.
+// HybridVerifyingKey serializes as a JSON object with "ed25519" and "pqc" fields.
+
+use base64::Engine as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
+
+impl Serialize for HybridSignature {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let env = QskeEnvelope {
+            algorithm: AlgorithmCode::Ed25519MlDsa65,
+            key_type: KeyType::Signature,
+            payload: self.bytes.clone(),
+        };
+        s.serialize_str(&base64::engine::general_purpose::STANDARD.encode(env.encode()))
+    }
+}
+
+impl<'de> Deserialize<'de> for HybridSignature {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let b64 = String::deserialize(d)?;
+        let raw = base64::engine::general_purpose::STANDARD
+            .decode(&b64)
+            .map_err(serde::de::Error::custom)?;
+        let env = QskeEnvelope::decode(&raw).map_err(serde::de::Error::custom)?;
+        if env.algorithm != AlgorithmCode::Ed25519MlDsa65 {
+            return Err(serde::de::Error::custom("expected Ed25519MlDsa65 algorithm"));
+        }
+        if env.key_type != KeyType::Signature {
+            return Err(serde::de::Error::custom("expected Signature key type"));
+        }
+        HybridSignature::from_bytes(&env.payload).map_err(serde::de::Error::custom)
+    }
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

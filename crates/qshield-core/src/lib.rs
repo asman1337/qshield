@@ -9,6 +9,7 @@ pub mod hybrid;
 pub mod hybrid_sig;
 pub mod kdf;
 pub mod kem;
+pub mod wire;
 pub mod zeroize_audit;
 
 pub use aead::{
@@ -28,3 +29,4 @@ pub use hybrid_sig::{
     HybridSignature, HybridSigningKey, HybridVerifyingKey,
 };
 pub use kem::{kem_decapsulate, kem_encapsulate, kem_keygen, KemCiphertext, KemKeyPair, KemLevel, KemPublicKey, KemSecretKey, SharedSecret};
+pub use wire::{AlgorithmCode, from_envelope_b64, KeyType, QskeEnvelope, to_envelope_b64};

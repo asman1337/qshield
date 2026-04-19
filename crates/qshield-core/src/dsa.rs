@@ -320,6 +320,85 @@ pub fn dsa_verify(
     }
 }
 
+// ── Serde (QS-113) ────────────────────────────────────────────────────────
+//
+// DsaVerifyingKey and DsaSignature serialize as base64-encoded QSKE envelopes.
+
+use base64::Engine as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
+
+fn dsa_level_to_algo(level: DsaLevel) -> AlgorithmCode {
+    match level {
+        DsaLevel::Dsa44 => AlgorithmCode::MlDsa44,
+        DsaLevel::Dsa65 => AlgorithmCode::MlDsa65,
+        DsaLevel::Dsa87 => AlgorithmCode::MlDsa87,
+    }
+}
+
+fn algo_to_dsa_level(algo: AlgorithmCode) -> Result<DsaLevel, QShieldError> {
+    match algo {
+        AlgorithmCode::MlDsa44 => Ok(DsaLevel::Dsa44),
+        AlgorithmCode::MlDsa65 => Ok(DsaLevel::Dsa65),
+        AlgorithmCode::MlDsa87 => Ok(DsaLevel::Dsa87),
+        _ => Err(QShieldError::UnsupportedAlgorithm {
+            name: format!("DsaLevel: unexpected algorithm code 0x{:04X}", algo.to_u16()),
+        }),
+    }
+}
+
+fn decode_dsa_envelope<'de, D: Deserializer<'de>>(
+    d: D,
+    expected_kt: KeyType,
+) -> Result<(DsaLevel, Vec<u8>), D::Error> {
+    let b64 = String::deserialize(d)?;
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(&b64)
+        .map_err(serde::de::Error::custom)?;
+    let env = QskeEnvelope::decode(&raw).map_err(serde::de::Error::custom)?;
+    if env.key_type != expected_kt {
+        return Err(serde::de::Error::custom("QSKE key_type mismatch"));
+    }
+    let level = algo_to_dsa_level(env.algorithm).map_err(serde::de::Error::custom)?;
+    Ok((level, env.payload))
+}
+
+impl Serialize for DsaVerifyingKey {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let env = QskeEnvelope {
+            algorithm: dsa_level_to_algo(self.level),
+            key_type: KeyType::Public,
+            payload: self.bytes.clone(),
+        };
+        s.serialize_str(&base64::engine::general_purpose::STANDARD.encode(env.encode()))
+    }
+}
+
+impl<'de> Deserialize<'de> for DsaVerifyingKey {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let (level, payload) = decode_dsa_envelope(d, KeyType::Public)?;
+        Ok(DsaVerifyingKey { bytes: payload, level })
+    }
+}
+
+impl Serialize for DsaSignature {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let env = QskeEnvelope {
+            algorithm: dsa_level_to_algo(self.level),
+            key_type: KeyType::Signature,
+            payload: self.bytes.clone(),
+        };
+        s.serialize_str(&base64::engine::general_purpose::STANDARD.encode(env.encode()))
+    }
+}
+
+impl<'de> Deserialize<'de> for DsaSignature {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let (level, payload) = decode_dsa_envelope(d, KeyType::Signature)?;
+        Ok(DsaSignature { bytes: payload, level })
+    }
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

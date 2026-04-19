@@ -394,6 +394,124 @@ pub fn kem_decapsulate(sk: &KemSecretKey, ct: &KemCiphertext) -> Result<SharedSe
     }
 }
 
+// -- Serde (QS-113) ---------------------------------------------------------
+//
+// KemPublicKey, KemSecretKey, and KemCiphertext serialize as base64-encoded
+// QSKE envelopes (JSON-safe strings).
+
+use base64::Engine as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
+
+fn level_to_algo(level: KemLevel) -> AlgorithmCode {
+    match level {
+        KemLevel::Kem512  => AlgorithmCode::MlKem512,
+        KemLevel::Kem768  => AlgorithmCode::MlKem768,
+        KemLevel::Kem1024 => AlgorithmCode::MlKem1024,
+    }
+}
+
+fn algo_to_level(algo: AlgorithmCode) -> Result<KemLevel, QShieldError> {
+    match algo {
+        AlgorithmCode::MlKem512  => Ok(KemLevel::Kem512),
+        AlgorithmCode::MlKem768  => Ok(KemLevel::Kem768),
+        AlgorithmCode::MlKem1024 => Ok(KemLevel::Kem1024),
+        _ => Err(QShieldError::UnsupportedAlgorithm {
+            name: format!("KemLevel: unexpected algorithm code 0x{:04X}", algo.to_u16()),
+        }),
+    }
+}
+
+fn decode_kem_envelope<'de, D: Deserializer<'de>>(
+    d: D,
+    expected_kt: KeyType,
+) -> Result<(KemLevel, Vec<u8>), D::Error> {
+    let b64 = String::deserialize(d)?;
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(&b64)
+        .map_err(serde::de::Error::custom)?;
+    let env = QskeEnvelope::decode(&raw).map_err(serde::de::Error::custom)?;
+    if env.key_type != expected_kt {
+        return Err(serde::de::Error::custom("QSKE key_type mismatch"));
+    }
+    let level = algo_to_level(env.algorithm).map_err(serde::de::Error::custom)?;
+    Ok((level, env.payload))
+}
+
+impl Serialize for KemPublicKey {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let env = QskeEnvelope {
+            algorithm: level_to_algo(self.level),
+            key_type: KeyType::Public,
+            payload: self.to_bytes(),
+        };
+        s.serialize_str(&base64::engine::general_purpose::STANDARD.encode(env.encode()))
+    }
+}
+
+impl<'de> Deserialize<'de> for KemPublicKey {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let (level, payload) = decode_kem_envelope(d, KeyType::Public)?;
+        KemPublicKey::from_bytes(level, &payload).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Serialize for KemSecretKey {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let env = QskeEnvelope {
+            algorithm: level_to_algo(self.level),
+            key_type: KeyType::Secret,
+            payload: self.to_bytes(),
+        };
+        s.serialize_str(&base64::engine::general_purpose::STANDARD.encode(env.encode()))
+    }
+}
+
+impl<'de> Deserialize<'de> for KemSecretKey {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let (level, payload) = decode_kem_envelope(d, KeyType::Secret)?;
+        let inner = match level {
+            KemLevel::Kem512 => {
+                #[allow(deprecated)]
+                DkInner::Kem512(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem512Params>::from_bytes(
+                    ml_kem::array::Array::from_slice(&payload),
+                ))
+            }
+            KemLevel::Kem768 => {
+                #[allow(deprecated)]
+                DkInner::Kem768(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem768Params>::from_bytes(
+                    ml_kem::array::Array::from_slice(&payload),
+                ))
+            }
+            KemLevel::Kem1024 => {
+                #[allow(deprecated)]
+                DkInner::Kem1024(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(
+                    ml_kem::array::Array::from_slice(&payload),
+                ))
+            }
+        };
+        Ok(KemSecretKey { inner: Some(inner), level })
+    }
+}
+
+impl Serialize for KemCiphertext {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let env = QskeEnvelope {
+            algorithm: level_to_algo(self.level),
+            key_type: KeyType::Ciphertext,
+            payload: self.bytes.clone(),
+        };
+        s.serialize_str(&base64::engine::general_purpose::STANDARD.encode(env.encode()))
+    }
+}
+
+impl<'de> Deserialize<'de> for KemCiphertext {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let (level, payload) = decode_kem_envelope(d, KeyType::Ciphertext)?;
+        KemCiphertext::from_bytes(level, &payload).map_err(serde::de::Error::custom)
+    }
+}
+
 // -- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
