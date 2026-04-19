@@ -7,9 +7,9 @@
 use std::fmt;
 
 use ml_kem::{
+    EncodedSizeUser, KemCore, MlKem512, MlKem512Params, MlKem768, MlKem768Params, MlKem1024,
+    MlKem1024Params,
     kem::{Decapsulate, DecapsulationKey, Encapsulate, EncapsulationKey},
-    EncodedSizeUser, KemCore, MlKem1024, MlKem1024Params, MlKem512, MlKem512Params, MlKem768,
-    MlKem768Params,
 };
 use rand_core::OsRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -151,7 +151,12 @@ impl fmt::Debug for KemSecretKey {
 
 impl fmt::Debug for KemCiphertext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "KemCiphertext([{} bytes] level={:?})", self.bytes.len(), self.level)
+        write!(
+            f,
+            "KemCiphertext([{} bytes] level={:?})",
+            self.bytes.len(),
+            self.level
+        )
     }
 }
 
@@ -251,29 +256,44 @@ impl KemSecretKey {
             KemLevel::Kem1024 => 3168,
         };
         if bytes.len() != expected {
-            return Err(QShieldError::InvalidKeyLength { expected, actual: bytes.len() });
+            return Err(QShieldError::InvalidKeyLength {
+                expected,
+                actual: bytes.len(),
+            });
         }
         let inner = match level {
-            KemLevel::Kem512 => {
+            KemLevel::Kem512 =>
+            {
                 #[allow(deprecated)]
-                DkInner::Kem512(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem512Params>::from_bytes(
-                    ml_kem::array::Array::from_slice(bytes),
-                ))
+                DkInner::Kem512(
+                    ml_kem::kem::DecapsulationKey::<ml_kem::MlKem512Params>::from_bytes(
+                        ml_kem::array::Array::from_slice(bytes),
+                    ),
+                )
             }
-            KemLevel::Kem768 => {
+            KemLevel::Kem768 =>
+            {
                 #[allow(deprecated)]
-                DkInner::Kem768(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem768Params>::from_bytes(
-                    ml_kem::array::Array::from_slice(bytes),
-                ))
+                DkInner::Kem768(
+                    ml_kem::kem::DecapsulationKey::<ml_kem::MlKem768Params>::from_bytes(
+                        ml_kem::array::Array::from_slice(bytes),
+                    ),
+                )
             }
-            KemLevel::Kem1024 => {
+            KemLevel::Kem1024 =>
+            {
                 #[allow(deprecated)]
-                DkInner::Kem1024(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(
-                    ml_kem::array::Array::from_slice(bytes),
-                ))
+                DkInner::Kem1024(
+                    ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(
+                        ml_kem::array::Array::from_slice(bytes),
+                    ),
+                )
             }
         };
-        Ok(KemSecretKey { inner: Some(inner), level })
+        Ok(KemSecretKey {
+            inner: Some(inner),
+            level,
+        })
     }
 }
 
@@ -300,7 +320,10 @@ impl KemCiphertext {
                 actual: bytes.len(),
             });
         }
-        Ok(Self { bytes: bytes.to_vec(), level })
+        Ok(Self {
+            bytes: bytes.to_vec(),
+            level,
+        })
     }
 
     #[must_use]
@@ -351,8 +374,14 @@ pub fn kem_keygen(level: KemLevel) -> Result<KemKeyPair, QShieldError> {
         }
     };
     Ok(KemKeyPair {
-        public_key: KemPublicKey { inner: ek_inner, level },
-        secret_key: KemSecretKey { inner: Some(dk_inner), level },
+        public_key: KemPublicKey {
+            inner: ek_inner,
+            level,
+        },
+        secret_key: KemSecretKey {
+            inner: Some(dk_inner),
+            level,
+        },
     })
 }
 
@@ -367,28 +396,48 @@ pub fn kem_encapsulate(pk: &KemPublicKey) -> Result<(SharedSecret, KemCiphertext
     let mut rng = OsRng;
     match &pk.inner {
         EkInner::Kem512(ek) => {
-            let (ct, ss) = ek.encapsulate(&mut rng).map_err(|_| QShieldError::Encapsulation {
-                algorithm: ALG_512,
-            })?;
+            let (ct, ss) = ek
+                .encapsulate(&mut rng)
+                .map_err(|_| QShieldError::Encapsulation { algorithm: ALG_512 })?;
             let ct_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&ct).to_vec();
             let ss_bytes: &[u8] = AsRef::<[u8]>::as_ref(&ss);
-            Ok((SharedSecret(ss_to_arr(ss_bytes)), KemCiphertext { bytes: ct_bytes, level: pk.level }))
+            Ok((
+                SharedSecret(ss_to_arr(ss_bytes)),
+                KemCiphertext {
+                    bytes: ct_bytes,
+                    level: pk.level,
+                },
+            ))
         }
         EkInner::Kem768(ek) => {
-            let (ct, ss) = ek.encapsulate(&mut rng).map_err(|_| QShieldError::Encapsulation {
-                algorithm: ALG_768,
-            })?;
+            let (ct, ss) = ek
+                .encapsulate(&mut rng)
+                .map_err(|_| QShieldError::Encapsulation { algorithm: ALG_768 })?;
             let ct_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&ct).to_vec();
             let ss_bytes: &[u8] = AsRef::<[u8]>::as_ref(&ss);
-            Ok((SharedSecret(ss_to_arr(ss_bytes)), KemCiphertext { bytes: ct_bytes, level: pk.level }))
+            Ok((
+                SharedSecret(ss_to_arr(ss_bytes)),
+                KemCiphertext {
+                    bytes: ct_bytes,
+                    level: pk.level,
+                },
+            ))
         }
         EkInner::Kem1024(ek) => {
-            let (ct, ss) = ek.encapsulate(&mut rng).map_err(|_| QShieldError::Encapsulation {
-                algorithm: ALG_1024,
-            })?;
+            let (ct, ss) = ek
+                .encapsulate(&mut rng)
+                .map_err(|_| QShieldError::Encapsulation {
+                    algorithm: ALG_1024,
+                })?;
             let ct_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&ct).to_vec();
             let ss_bytes: &[u8] = AsRef::<[u8]>::as_ref(&ss);
-            Ok((SharedSecret(ss_to_arr(ss_bytes)), KemCiphertext { bytes: ct_bytes, level: pk.level }))
+            Ok((
+                SharedSecret(ss_to_arr(ss_bytes)),
+                KemCiphertext {
+                    bytes: ct_bytes,
+                    level: pk.level,
+                },
+            ))
         }
     }
 }
@@ -398,33 +447,40 @@ pub fn kem_encapsulate(pk: &KemPublicKey) -> Result<(SharedSecret, KemCiphertext
 /// # Errors
 /// Returns `Decapsulation` if the level of `sk` and `ct` do not match, or on
 /// internal failure.
-pub fn kem_decapsulate(sk: &KemSecretKey, ct: &KemCiphertext) -> Result<SharedSecret, QShieldError> {
+pub fn kem_decapsulate(
+    sk: &KemSecretKey,
+    ct: &KemCiphertext,
+) -> Result<SharedSecret, QShieldError> {
     if sk.level != ct.level {
-        return Err(QShieldError::Decapsulation { algorithm: "ML-KEM (level mismatch)" });
+        return Err(QShieldError::Decapsulation {
+            algorithm: "ML-KEM (level mismatch)",
+        });
     }
     match sk.inner.as_ref().expect("KemSecretKey already zeroized") {
         DkInner::Kem512(dk) => {
             #[allow(deprecated)]
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);
-            let ss = dk.decapsulate(ct_arr).map_err(|_| QShieldError::Decapsulation {
-                algorithm: ALG_512,
-            })?;
+            let ss = dk
+                .decapsulate(ct_arr)
+                .map_err(|_| QShieldError::Decapsulation { algorithm: ALG_512 })?;
             Ok(SharedSecret(ss_to_arr(ss.as_ref())))
         }
         DkInner::Kem768(dk) => {
             #[allow(deprecated)]
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);
-            let ss = dk.decapsulate(ct_arr).map_err(|_| QShieldError::Decapsulation {
-                algorithm: ALG_768,
-            })?;
+            let ss = dk
+                .decapsulate(ct_arr)
+                .map_err(|_| QShieldError::Decapsulation { algorithm: ALG_768 })?;
             Ok(SharedSecret(ss_to_arr(ss.as_ref())))
         }
         DkInner::Kem1024(dk) => {
             #[allow(deprecated)]
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);
-            let ss = dk.decapsulate(ct_arr).map_err(|_| QShieldError::Decapsulation {
-                algorithm: ALG_1024,
-            })?;
+            let ss = dk
+                .decapsulate(ct_arr)
+                .map_err(|_| QShieldError::Decapsulation {
+                    algorithm: ALG_1024,
+                })?;
             Ok(SharedSecret(ss_to_arr(ss.as_ref())))
         }
     }
@@ -435,25 +491,28 @@ pub fn kem_decapsulate(sk: &KemSecretKey, ct: &KemCiphertext) -> Result<SharedSe
 // KemPublicKey, KemSecretKey, and KemCiphertext serialize as base64-encoded
 // QSKE envelopes (JSON-safe strings).
 
+use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 use base64::Engine as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 
 fn level_to_algo(level: KemLevel) -> AlgorithmCode {
     match level {
-        KemLevel::Kem512  => AlgorithmCode::MlKem512,
-        KemLevel::Kem768  => AlgorithmCode::MlKem768,
+        KemLevel::Kem512 => AlgorithmCode::MlKem512,
+        KemLevel::Kem768 => AlgorithmCode::MlKem768,
         KemLevel::Kem1024 => AlgorithmCode::MlKem1024,
     }
 }
 
 fn algo_to_level(algo: AlgorithmCode) -> Result<KemLevel, QShieldError> {
     match algo {
-        AlgorithmCode::MlKem512  => Ok(KemLevel::Kem512),
-        AlgorithmCode::MlKem768  => Ok(KemLevel::Kem768),
+        AlgorithmCode::MlKem512 => Ok(KemLevel::Kem512),
+        AlgorithmCode::MlKem768 => Ok(KemLevel::Kem768),
         AlgorithmCode::MlKem1024 => Ok(KemLevel::Kem1024),
         _ => Err(QShieldError::UnsupportedAlgorithm {
-            name: format!("KemLevel: unexpected algorithm code 0x{:04X}", algo.to_u16()),
+            name: format!(
+                "KemLevel: unexpected algorithm code 0x{:04X}",
+                algo.to_u16()
+            ),
         }),
     }
 }
@@ -507,26 +566,38 @@ impl<'de> Deserialize<'de> for KemSecretKey {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let (level, payload) = decode_kem_envelope(d, KeyType::Secret)?;
         let inner = match level {
-            KemLevel::Kem512 => {
+            KemLevel::Kem512 =>
+            {
                 #[allow(deprecated)]
-                DkInner::Kem512(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem512Params>::from_bytes(
-                    ml_kem::array::Array::from_slice(&payload),
-                ))
+                DkInner::Kem512(
+                    ml_kem::kem::DecapsulationKey::<ml_kem::MlKem512Params>::from_bytes(
+                        ml_kem::array::Array::from_slice(&payload),
+                    ),
+                )
             }
-            KemLevel::Kem768 => {
+            KemLevel::Kem768 =>
+            {
                 #[allow(deprecated)]
-                DkInner::Kem768(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem768Params>::from_bytes(
-                    ml_kem::array::Array::from_slice(&payload),
-                ))
+                DkInner::Kem768(
+                    ml_kem::kem::DecapsulationKey::<ml_kem::MlKem768Params>::from_bytes(
+                        ml_kem::array::Array::from_slice(&payload),
+                    ),
+                )
             }
-            KemLevel::Kem1024 => {
+            KemLevel::Kem1024 =>
+            {
                 #[allow(deprecated)]
-                DkInner::Kem1024(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(
-                    ml_kem::array::Array::from_slice(&payload),
-                ))
+                DkInner::Kem1024(
+                    ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(
+                        ml_kem::array::Array::from_slice(&payload),
+                    ),
+                )
             }
         };
-        Ok(KemSecretKey { inner: Some(inner), level })
+        Ok(KemSecretKey {
+            inner: Some(inner),
+            level,
+        })
     }
 }
 
@@ -558,7 +629,11 @@ mod tests {
         let kp = kem_keygen(level).expect("keygen");
         let (ss_send, ct) = kem_encapsulate(&kp.public_key).expect("encapsulate");
         let ss_recv = kem_decapsulate(&kp.secret_key, &ct).expect("decapsulate");
-        assert_eq!(ss_send.as_bytes(), ss_recv.as_bytes(), "shared secrets must match");
+        assert_eq!(
+            ss_send.as_bytes(),
+            ss_recv.as_bytes(),
+            "shared secrets must match"
+        );
     }
 
     #[test]

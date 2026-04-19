@@ -7,9 +7,8 @@
 use std::fmt;
 
 use ml_dsa::{
-    signature::Verifier,
     EncodedSignature, EncodedSigningKey, EncodedVerifyingKey, KeyGen, KeyPair, MlDsa44, MlDsa65,
-    MlDsa87, MlDsaParams, Signature, SigningKey, VerifyingKey,
+    MlDsa87, MlDsaParams, Signature, SigningKey, VerifyingKey, signature::Verifier,
 };
 use rand_core::OsRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -103,13 +102,23 @@ impl fmt::Debug for DsaKeyPair {
 
 impl fmt::Debug for DsaVerifyingKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DsaVerifyingKey([{} bytes] level={:?})", self.bytes.len(), self.level)
+        write!(
+            f,
+            "DsaVerifyingKey([{} bytes] level={:?})",
+            self.bytes.len(),
+            self.level
+        )
     }
 }
 
 impl fmt::Debug for DsaSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DsaSignature([{} bytes] level={:?})", self.bytes.len(), self.level)
+        write!(
+            f,
+            "DsaSignature([{} bytes] level={:?})",
+            self.bytes.len(),
+            self.level
+        )
     }
 }
 
@@ -147,7 +156,10 @@ impl DsaKeyPair {
             KpInner::Dsa65(kp) => vk_to_bytes(kp.verifying_key()),
             KpInner::Dsa87(kp) => vk_to_bytes(kp.verifying_key()),
         };
-        DsaVerifyingKey { bytes, level: self.level }
+        DsaVerifyingKey {
+            bytes,
+            level: self.level,
+        }
     }
 
     #[must_use]
@@ -162,9 +174,18 @@ impl DsaKeyPair {
     #[must_use]
     pub fn signing_key_bytes(&self) -> Vec<u8> {
         match self.inner.as_ref().expect("DsaKeyPair already zeroized") {
-            KpInner::Dsa44(kp) => { let enc = kp.signing_key().encode(); enc[..].to_vec() }
-            KpInner::Dsa65(kp) => { let enc = kp.signing_key().encode(); enc[..].to_vec() }
-            KpInner::Dsa87(kp) => { let enc = kp.signing_key().encode(); enc[..].to_vec() }
+            KpInner::Dsa44(kp) => {
+                let enc = kp.signing_key().encode();
+                enc[..].to_vec()
+            }
+            KpInner::Dsa65(kp) => {
+                let enc = kp.signing_key().encode();
+                enc[..].to_vec()
+            }
+            KpInner::Dsa87(kp) => {
+                let enc = kp.signing_key().encode();
+                enc[..].to_vec()
+            }
         }
     }
 }
@@ -228,7 +249,10 @@ pub fn dsa_keygen(level: DsaLevel) -> Result<DsaKeyPair, QShieldError> {
         DsaLevel::Dsa65 => KpInner::Dsa65(MlDsa65::key_gen(&mut rng)),
         DsaLevel::Dsa87 => KpInner::Dsa87(MlDsa87::key_gen(&mut rng)),
     };
-    Ok(DsaKeyPair { inner: Some(inner), level })
+    Ok(DsaKeyPair {
+        inner: Some(inner),
+        level,
+    })
 }
 
 /// Sign `message` using hedged (randomized) ML-DSA.
@@ -270,7 +294,10 @@ pub fn dsa_sign(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShield
 ///
 /// # Errors
 /// Returns `SignatureCreation` on internal failure.
-pub fn dsa_sign_deterministic(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShieldError> {
+pub fn dsa_sign_deterministic(
+    kp: &DsaKeyPair,
+    message: &[u8],
+) -> Result<DsaSignature, QShieldError> {
     let (bytes, level) = match kp.inner.as_ref().expect("DsaKeyPair already zeroized") {
         KpInner::Dsa44(pair) => {
             let sk: &SigningKey<MlDsa44> = pair.signing_key();
@@ -350,9 +377,9 @@ pub fn dsa_verify(
 //
 // DsaVerifyingKey and DsaSignature serialize as base64-encoded QSKE envelopes.
 
+use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 use base64::Engine as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 
 // ── FFI helper ─────────────────────────────────────────────────────────────
 
@@ -362,38 +389,55 @@ use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 /// # Errors
 /// Returns `InvalidKeyLength` if `sk_bytes` has the wrong length for `level`,
 /// or `SignatureCreation` on internal failure.
-pub fn dsa_sign_bytes(level: DsaLevel, sk_bytes: &[u8], message: &[u8]) -> Result<DsaSignature, QShieldError> {
+pub fn dsa_sign_bytes(
+    level: DsaLevel,
+    sk_bytes: &[u8],
+    message: &[u8],
+) -> Result<DsaSignature, QShieldError> {
     let mut rng = OsRng;
     let (bytes, level) = match level {
         DsaLevel::Dsa44 => {
-            let enc = EncodedSigningKey::<MlDsa44>::try_from(sk_bytes)
-                .map_err(|_| QShieldError::InvalidKeyLength { expected: 2560, actual: sk_bytes.len() })?;
+            let enc = EncodedSigningKey::<MlDsa44>::try_from(sk_bytes).map_err(|_| {
+                QShieldError::InvalidKeyLength {
+                    expected: 2560,
+                    actual: sk_bytes.len(),
+                }
+            })?;
             let sk = SigningKey::<MlDsa44>::decode(&enc);
-            let sig = sk.sign_randomized(message, &[], &mut rng)
+            let sig = sk
+                .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_44 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa44)
         }
         DsaLevel::Dsa65 => {
-            let enc = EncodedSigningKey::<MlDsa65>::try_from(sk_bytes)
-                .map_err(|_| QShieldError::InvalidKeyLength { expected: 4032, actual: sk_bytes.len() })?;
+            let enc = EncodedSigningKey::<MlDsa65>::try_from(sk_bytes).map_err(|_| {
+                QShieldError::InvalidKeyLength {
+                    expected: 4032,
+                    actual: sk_bytes.len(),
+                }
+            })?;
             let sk = SigningKey::<MlDsa65>::decode(&enc);
-            let sig = sk.sign_randomized(message, &[], &mut rng)
+            let sig = sk
+                .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_65 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa65)
         }
         DsaLevel::Dsa87 => {
-            let enc = EncodedSigningKey::<MlDsa87>::try_from(sk_bytes)
-                .map_err(|_| QShieldError::InvalidKeyLength { expected: 4896, actual: sk_bytes.len() })?;
+            let enc = EncodedSigningKey::<MlDsa87>::try_from(sk_bytes).map_err(|_| {
+                QShieldError::InvalidKeyLength {
+                    expected: 4896,
+                    actual: sk_bytes.len(),
+                }
+            })?;
             let sk = SigningKey::<MlDsa87>::decode(&enc);
-            let sig = sk.sign_randomized(message, &[], &mut rng)
+            let sig = sk
+                .sign_randomized(message, &[], &mut rng)
                 .map_err(|_| QShieldError::SignatureCreation { algorithm: ALG_87 })?;
             (sig_to_bytes(&sig), DsaLevel::Dsa87)
         }
     };
     Ok(DsaSignature { bytes, level })
 }
-
-
 
 fn dsa_level_to_algo(level: DsaLevel) -> AlgorithmCode {
     match level {
@@ -409,7 +453,10 @@ fn algo_to_dsa_level(algo: AlgorithmCode) -> Result<DsaLevel, QShieldError> {
         AlgorithmCode::MlDsa65 => Ok(DsaLevel::Dsa65),
         AlgorithmCode::MlDsa87 => Ok(DsaLevel::Dsa87),
         _ => Err(QShieldError::UnsupportedAlgorithm {
-            name: format!("DsaLevel: unexpected algorithm code 0x{:04X}", algo.to_u16()),
+            name: format!(
+                "DsaLevel: unexpected algorithm code 0x{:04X}",
+                algo.to_u16()
+            ),
         }),
     }
 }
@@ -444,7 +491,10 @@ impl Serialize for DsaVerifyingKey {
 impl<'de> Deserialize<'de> for DsaVerifyingKey {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let (level, payload) = decode_dsa_envelope(d, KeyType::Public)?;
-        Ok(DsaVerifyingKey { bytes: payload, level })
+        Ok(DsaVerifyingKey {
+            bytes: payload,
+            level,
+        })
     }
 }
 
@@ -462,7 +512,10 @@ impl Serialize for DsaSignature {
 impl<'de> Deserialize<'de> for DsaSignature {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let (level, payload) = decode_dsa_envelope(d, KeyType::Signature)?;
-        Ok(DsaSignature { bytes: payload, level })
+        Ok(DsaSignature {
+            bytes: payload,
+            level,
+        })
     }
 }
 
@@ -514,7 +567,11 @@ mod tests {
             let kp = dsa_keygen(DsaLevel::Dsa65).unwrap();
             let sig1 = dsa_sign_deterministic(&kp, MSG).unwrap();
             let sig2 = dsa_sign_deterministic(&kp, MSG).unwrap();
-            assert_eq!(sig1.as_bytes(), sig2.as_bytes(), "deterministic signing must be reproducible");
+            assert_eq!(
+                sig1.as_bytes(),
+                sig2.as_bytes(),
+                "deterministic signing must be reproducible"
+            );
         });
     }
 
@@ -534,8 +591,10 @@ mod tests {
         with_large_stack(|| {
             let kp = dsa_keygen(DsaLevel::Dsa65).unwrap();
             let vk = kp.verifying_key();
-            let bad_sig =
-                DsaSignature { bytes: vec![0xde, 0xad, 0xbe, 0xef], level: DsaLevel::Dsa65 };
+            let bad_sig = DsaSignature {
+                bytes: vec![0xde, 0xad, 0xbe, 0xef],
+                level: DsaLevel::Dsa65,
+            };
             let result = dsa_verify(&vk, MSG, &bad_sig);
             assert!(result.is_ok(), "must not error on malformed sig");
             assert!(!result.unwrap(), "malformed sig must not verify");

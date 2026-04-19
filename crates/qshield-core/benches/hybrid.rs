@@ -4,8 +4,8 @@
 // and decapsulate.  These are the modes used in QShield's TLS proxy and
 // Vault E2E encryption.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use qshield_core::{hybrid_decapsulate, hybrid_encapsulate, hybrid_keygen, HybridMode};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use qshield_core::{HybridMode, hybrid_decapsulate, hybrid_encapsulate, hybrid_keygen};
 
 fn bench_hybrid_keygen(c: &mut Criterion) {
     let mut g = c.benchmark_group("hybrid_keygen");
@@ -48,9 +48,7 @@ fn bench_hybrid_decapsulate(c: &mut Criterion) {
         let kp = hybrid_keygen(mode).unwrap();
         let (_, ct) = hybrid_encapsulate(&kp.public_key).unwrap();
         g.bench_function(label, |b| {
-            b.iter(|| {
-                hybrid_decapsulate(black_box(&kp.secret_key), black_box(&ct)).unwrap()
-            })
+            b.iter(|| hybrid_decapsulate(black_box(&kp.secret_key), black_box(&ct)).unwrap())
         });
     }
 

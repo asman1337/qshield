@@ -1,11 +1,11 @@
-﻿// DSA benchmarks (QS-115)
+// DSA benchmarks (QS-115)
 //
 // Covers ML-DSA-44/65/87 keygen, sign (hedged), and verify.
 // Ed25519 is included as a performance baseline in each group.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use ed25519_dalek::{Signer, SigningKey, Verifier};
-use qshield_core::{dsa_keygen, dsa_sign, dsa_verify, DsaLevel};
+use qshield_core::{DsaLevel, dsa_keygen, dsa_sign, dsa_verify};
 use rand_core::OsRng;
 
 /// A representative 64-byte message for signature benchmarks.
@@ -19,9 +19,7 @@ fn bench_dsa_keygen(c: &mut Criterion) {
         ("ML-DSA-65", DsaLevel::Dsa65),
         ("ML-DSA-87", DsaLevel::Dsa87),
     ] {
-        g.bench_function(label, |b| {
-            b.iter(|| dsa_keygen(black_box(level)).unwrap())
-        });
+        g.bench_function(label, |b| b.iter(|| dsa_keygen(black_box(level)).unwrap()));
     }
 
     // Classical baseline: Ed25519 keypair generation.
@@ -83,7 +81,12 @@ fn bench_dsa_verify(c: &mut Criterion) {
     g.finish();
 }
 
-criterion_group!(dsa_benches, bench_dsa_keygen, bench_dsa_sign, bench_dsa_verify);
+criterion_group!(
+    dsa_benches,
+    bench_dsa_keygen,
+    bench_dsa_sign,
+    bench_dsa_verify
+);
 
 // ML-DSA uses large stack frames; spawn with 64 MB to avoid overflow on Windows.
 fn main() {

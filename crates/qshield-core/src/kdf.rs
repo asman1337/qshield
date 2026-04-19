@@ -41,7 +41,9 @@ pub fn hkdf_sha256(
     let hk = Hkdf::<Sha256>::new(salt, ikm);
     let mut okm = Zeroizing::new(vec![0u8; output_len]);
     hk.expand(info, &mut okm)
-        .map_err(|_| QShieldError::KeyDerivation { reason: "HKDF-SHA256 expand: output_len exceeds limit" })?;
+        .map_err(|_| QShieldError::KeyDerivation {
+            reason: "HKDF-SHA256 expand: output_len exceeds limit",
+        })?;
     Ok(okm)
 }
 
@@ -62,7 +64,9 @@ pub fn hkdf_sha3_256(
     let hk = Hkdf::<Sha3_256>::new(salt, ikm);
     let mut okm = Zeroizing::new(vec![0u8; output_len]);
     hk.expand(info, &mut okm)
-        .map_err(|_| QShieldError::KeyDerivation { reason: "HKDF-SHA3-256 expand: output_len exceeds limit" })?;
+        .map_err(|_| QShieldError::KeyDerivation {
+            reason: "HKDF-SHA3-256 expand: output_len exceeds limit",
+        })?;
     Ok(okm)
 }
 
@@ -80,7 +84,9 @@ pub fn derive_key_256(
     let hk = Hkdf::<Sha3_256>::new(salt, ikm);
     let mut okm = Zeroizing::new([0u8; 32]);
     hk.expand(info, okm.as_mut())
-        .map_err(|_| QShieldError::KeyDerivation { reason: "HKDF-SHA3-256 expand: unexpected failure for 32-byte output" })?;
+        .map_err(|_| QShieldError::KeyDerivation {
+            reason: "HKDF-SHA3-256 expand: unexpected failure for 32-byte output",
+        })?;
     Ok(okm)
 }
 
@@ -88,10 +94,14 @@ pub fn derive_key_256(
 
 fn validate_output_len(len: usize, max: usize) -> Result<(), QShieldError> {
     if len == 0 {
-        return Err(QShieldError::KeyDerivation { reason: "output_len must be > 0" });
+        return Err(QShieldError::KeyDerivation {
+            reason: "output_len must be > 0",
+        });
     }
     if len > max {
-        return Err(QShieldError::KeyDerivation { reason: "output_len exceeds HKDF maximum (255 * HashLen)" });
+        return Err(QShieldError::KeyDerivation {
+            reason: "output_len exceeds HKDF maximum (255 * HashLen)",
+        });
     }
     Ok(())
 }
@@ -180,7 +190,11 @@ mod tests {
         let ikm = b"same key material";
         let out_a = hkdf_sha3_256(ikm, None, b"purpose:a", 32).expect("a");
         let out_b = hkdf_sha3_256(ikm, None, b"purpose:b", 32).expect("b");
-        assert_ne!(&out_a[..], &out_b[..], "different info must produce different output");
+        assert_ne!(
+            &out_a[..],
+            &out_b[..],
+            "different info must produce different output"
+        );
     }
 
     #[test]

@@ -1,10 +1,10 @@
-﻿// KEM benchmarks (QS-115)
+// KEM benchmarks (QS-115)
 //
 // Covers ML-KEM-512/768/1024 keygen, encapsulate, and decapsulate.
 // X25519 classical DH is included as a performance baseline in each group.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use qshield_core::{kem_decapsulate, kem_encapsulate, kem_keygen, KemLevel};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use qshield_core::{KemLevel, kem_decapsulate, kem_encapsulate, kem_keygen};
 use rand_core::OsRng;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519Public, StaticSecret};
 
@@ -16,9 +16,7 @@ fn bench_kem_keygen(c: &mut Criterion) {
         ("ML-KEM-768", KemLevel::Kem768),
         ("ML-KEM-1024", KemLevel::Kem1024),
     ] {
-        g.bench_function(label, |b| {
-            b.iter(|| kem_keygen(black_box(level)).unwrap())
-        });
+        g.bench_function(label, |b| b.iter(|| kem_keygen(black_box(level)).unwrap()));
     }
 
     // Classical baseline: X25519 static keypair generation.
@@ -90,5 +88,10 @@ fn bench_kem_decapsulate(c: &mut Criterion) {
     g.finish();
 }
 
-criterion_group!(kem_benches, bench_kem_keygen, bench_kem_encapsulate, bench_kem_decapsulate);
+criterion_group!(
+    kem_benches,
+    bench_kem_keygen,
+    bench_kem_encapsulate,
+    bench_kem_decapsulate
+);
 criterion_main!(kem_benches);

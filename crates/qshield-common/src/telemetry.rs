@@ -34,13 +34,19 @@ impl TelemetryConfig {
     /// Minimal config: service name only, no OTLP export.
     #[must_use]
     pub fn minimal(service_name: &'static str) -> Self {
-        Self { service_name, otlp_endpoint: None }
+        Self {
+            service_name,
+            otlp_endpoint: None,
+        }
     }
 
     /// Config with OTLP export enabled.
     #[must_use]
     pub fn with_otlp(service_name: &'static str, endpoint: impl Into<String>) -> Self {
-        Self { service_name, otlp_endpoint: Some(endpoint.into()) }
+        Self {
+            service_name,
+            otlp_endpoint: Some(endpoint.into()),
+        }
     }
 }
 
@@ -60,7 +66,9 @@ pub fn install_prometheus(service_name: &'static str) -> Result<PrometheusHandle
         .with_recommended_naming(true)
         .add_global_label("service", service_name)
         .install_recorder()
-        .map_err(|e| QShieldError::Internal { message: e.to_string() })
+        .map_err(|e| QShieldError::Internal {
+            message: e.to_string(),
+        })
 }
 
 // ── Tracing ───────────────────────────────────────────────────────────────────
@@ -81,10 +89,9 @@ pub fn init_tracing(cfg: &TelemetryConfig) -> Result<(), QShieldError> {
     use opentelemetry_otlp::{SpanExporter, WithExportConfig};
     use opentelemetry_sdk::trace::SdkTracerProvider;
     use tracing_opentelemetry::OpenTelemetryLayer;
-    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     let fmt_layer = fmt::layer().json().flatten_event(true);
 
@@ -97,7 +104,9 @@ pub fn init_tracing(cfg: &TelemetryConfig) -> Result<(), QShieldError> {
             .with_http()
             .with_endpoint(format!("{}/v1/traces", endpoint.trim_end_matches('/')))
             .build()
-            .map_err(|e| QShieldError::Internal { message: format!("OTLP exporter: {e}") })?;
+            .map_err(|e| QShieldError::Internal {
+                message: format!("OTLP exporter: {e}"),
+            })?;
 
         let provider = SdkTracerProvider::builder()
             .with_simple_exporter(exporter)
@@ -108,20 +117,26 @@ pub fn init_tracing(cfg: &TelemetryConfig) -> Result<(), QShieldError> {
 
         TRACER_PROVIDER
             .set(provider)
-            .map_err(|_| QShieldError::Internal { message: "tracer provider already set".into() })?;
+            .map_err(|_| QShieldError::Internal {
+                message: "tracer provider already set".into(),
+            })?;
 
         tracing_subscriber::registry()
             .with(env_filter)
             .with(fmt_layer)
             .with(OpenTelemetryLayer::new(tracer))
             .try_init()
-            .map_err(|e| QShieldError::Internal { message: format!("tracing init: {e}") })?;
+            .map_err(|e| QShieldError::Internal {
+                message: format!("tracing init: {e}"),
+            })?;
     } else {
         tracing_subscriber::registry()
             .with(env_filter)
             .with(fmt_layer)
             .try_init()
-            .map_err(|e| QShieldError::Internal { message: format!("tracing init: {e}") })?;
+            .map_err(|e| QShieldError::Internal {
+                message: format!("tracing init: {e}"),
+            })?;
     }
 
     Ok(())
@@ -172,7 +187,11 @@ impl HealthResponse {
     #[must_use]
     pub fn ready(service: &'static str, deps_ok: bool) -> Self {
         Self {
-            status: if deps_ok { HealthStatus::Ok } else { HealthStatus::Degraded },
+            status: if deps_ok {
+                HealthStatus::Ok
+            } else {
+                HealthStatus::Degraded
+            },
             service,
             version: env!("CARGO_PKG_VERSION"),
         }

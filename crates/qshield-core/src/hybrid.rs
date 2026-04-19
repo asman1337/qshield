@@ -24,8 +24,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 use qshield_common::QShieldError;
 
 use crate::kem::{
-    kem_decapsulate, kem_encapsulate, kem_keygen, KemCiphertext, KemLevel, KemPublicKey,
-    KemSecretKey, SharedSecret,
+    KemCiphertext, KemLevel, KemPublicKey, KemSecretKey, SharedSecret, kem_decapsulate,
+    kem_encapsulate, kem_keygen,
 };
 
 const HKDF_SALT: &[u8] = b"QShield-Hybrid-KEM-v1";
@@ -123,12 +123,18 @@ impl HybridCiphertext {
     /// ciphertext length does not match `mode`.
     pub fn from_bytes(mode: HybridMode, bytes: &[u8]) -> Result<Self, QShieldError> {
         if bytes.len() < 32 {
-            return Err(QShieldError::InvalidKeyLength { expected: 32, actual: bytes.len() });
+            return Err(QShieldError::InvalidKeyLength {
+                expected: 32,
+                actual: bytes.len(),
+            });
         }
         let mut classical_ek = [0u8; 32];
         classical_ek.copy_from_slice(&bytes[..32]);
         let pqc_ct = KemCiphertext::from_bytes(mode.kem_level(), &bytes[32..])?;
-        Ok(Self { classical_ek, pqc_ct })
+        Ok(Self {
+            classical_ek,
+            pqc_ct,
+        })
     }
 }
 
@@ -198,11 +204,7 @@ impl fmt::Debug for HybridCiphertext {
 ///
 /// IKM = `x25519_ss ‖ pqc_ss`. The concatenated IKM buffer is zeroized before
 /// this function returns.
-pub(crate) fn hkdf_combine(
-    x25519_ss: &[u8; 32],
-    pqc_ss: &[u8; 32],
-    info: &[u8],
-) -> [u8; 32] {
+pub(crate) fn hkdf_combine(x25519_ss: &[u8; 32], pqc_ss: &[u8; 32], info: &[u8]) -> [u8; 32] {
     let mut ikm = Zeroizing::new([0u8; 64]);
     ikm[..32].copy_from_slice(x25519_ss);
     ikm[32..].copy_from_slice(pqc_ss);
@@ -210,7 +212,8 @@ pub(crate) fn hkdf_combine(
     let hk = Hkdf::<Sha256>::new(Some(HKDF_SALT), ikm.as_ref());
     let mut okm = [0u8; 32];
     // 32-byte output length is always within the HKDF-SHA-256 limit (8160 B).
-    hk.expand(info, &mut okm).expect("HKDF expand: 32-byte output is always within limit");
+    hk.expand(info, &mut okm)
+        .expect("HKDF expand: 32-byte output is always within limit");
     okm
 }
 
@@ -238,13 +241,20 @@ impl HybridSecretKey {
     /// length does not match `mode`.
     pub fn from_bytes(mode: HybridMode, bytes: &[u8]) -> Result<Self, QShieldError> {
         if bytes.len() < 32 {
-            return Err(QShieldError::InvalidKeyLength { expected: 32, actual: bytes.len() });
+            return Err(QShieldError::InvalidKeyLength {
+                expected: 32,
+                actual: bytes.len(),
+            });
         }
         let mut classical_arr = [0u8; 32];
         classical_arr.copy_from_slice(&bytes[..32]);
         let classical = StaticSecret::from(classical_arr);
         let pqc = KemSecretKey::from_bytes(mode.kem_level(), &bytes[32..])?;
-        Ok(Self { classical, pqc, mode })
+        Ok(Self {
+            classical,
+            pqc,
+            mode,
+        })
     }
 }
 
@@ -381,7 +391,8 @@ mod tests {
         assert_eq!(
             ss_send.as_bytes(),
             result.shared_secret.as_bytes(),
-            "shared secrets must match for {}", mode.label()
+            "shared secrets must match for {}",
+            mode.label()
         );
         assert_eq!(result.algorithm, NegotiatedAlgorithm::Hybrid(mode));
     }
@@ -412,8 +423,14 @@ mod tests {
         // Zeroing out either component must change the output.
         let x_only = hkdf_combine(&x_ss, &[0u8; 32], info);
         let pqc_only = hkdf_combine(&[0u8; 32], &pqc_ss, info);
-        assert_ne!(combined, x_only, "combined must differ from x25519-only HKDF");
-        assert_ne!(combined, pqc_only, "combined must differ from PQC-only HKDF");
+        assert_ne!(
+            combined, x_only,
+            "combined must differ from x25519-only HKDF"
+        );
+        assert_ne!(
+            combined, pqc_only,
+            "combined must differ from PQC-only HKDF"
+        );
     }
 
     #[test]
@@ -424,7 +441,10 @@ mod tests {
 
         let out1 = hkdf_combine(&x_ss, &pqc_ss, info);
         let out2 = hkdf_combine(&x_ss, &pqc_ss, info);
-        assert_eq!(out1, out2, "HKDF must be deterministic for identical inputs");
+        assert_eq!(
+            out1, out2,
+            "HKDF must be deterministic for identical inputs"
+        );
     }
 
     #[test]
@@ -434,7 +454,10 @@ mod tests {
 
         let out768 = hkdf_combine(&x_ss, &pqc_ss, HybridMode::X25519Kyber768.info());
         let out1024 = hkdf_combine(&x_ss, &pqc_ss, HybridMode::X25519Kyber1024.info());
-        assert_ne!(out768, out1024, "different modes must produce different secrets (different HKDF info)");
+        assert_ne!(
+            out768, out1024,
+            "different modes must produce different secrets (different HKDF info)"
+        );
     }
 
     #[test]
@@ -445,9 +468,8 @@ mod tests {
         let ephemeral_sk = EphemeralSecret::random_from_rng(OsRng);
         let ephemeral_pk = X25519Public::from(&ephemeral_sk);
 
-        let result =
-            classical_only_decapsulate(&kp.secret_key, &ephemeral_pk.as_bytes())
-                .expect("classical_only_decapsulate");
+        let result = classical_only_decapsulate(&kp.secret_key, &ephemeral_pk.as_bytes())
+            .expect("classical_only_decapsulate");
 
         assert_eq!(
             result.algorithm,
@@ -465,8 +487,7 @@ mod tests {
 
         let bytes = ct.to_bytes();
         let ct2 =
-            HybridCiphertext::from_bytes(HybridMode::X25519Kyber768, &bytes)
-                .expect("from_bytes");
+            HybridCiphertext::from_bytes(HybridMode::X25519Kyber768, &bytes).expect("from_bytes");
 
         assert_eq!(ct.classical_ek, ct2.classical_ek);
         assert_eq!(ct.pqc_ct.to_bytes(), ct2.pqc_ct.to_bytes());

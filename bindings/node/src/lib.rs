@@ -1,4 +1,4 @@
-﻿// QShield Node.js bindings (QS-110) — NAPI-RS 3
+// QShield Node.js bindings (QS-110) — NAPI-RS 3
 //
 // Exposes qshield-core's KEM, DSA, hybrid KEM, AEAD, and KDF functionality
 // to Node.js/TypeScript as a native addon (`@qshield/core`).
@@ -22,34 +22,20 @@ use rand::RngCore;
 use x25519_dalek::PublicKey as X25519Public;
 
 use qshield_core::{
-    aes256gcm_decrypt as core_aes256gcm_decrypt,
-    aes256gcm_encrypt as core_aes256gcm_encrypt,
+    DsaLevel as CoreDsaLevel, DsaSignature as CoreDsaSignature,
+    DsaVerifyingKey as CoreDsaVerifyingKey, HybridCiphertext as CoreHybridCiphertext,
+    HybridKeyPair as CoreHybridKeyPair, HybridMode as CoreHybridMode,
+    HybridPublicKey as CoreHybridPublicKey, HybridSecretKey as CoreHybridSecretKey,
+    KemCiphertext as CoreKemCiphertext, KemKeyPair as CoreKemKeyPair, KemLevel as CoreKemLevel,
+    KemPublicKey as CoreKemPublicKey, KemSecretKey as CoreKemSecretKey, NONCE_LEN,
+    aes256gcm_decrypt as core_aes256gcm_decrypt, aes256gcm_encrypt as core_aes256gcm_encrypt,
     chacha20poly1305_decrypt as core_chacha20poly1305_decrypt,
-    chacha20poly1305_encrypt as core_chacha20poly1305_encrypt,
-    dsa_keygen as core_dsa_keygen,
-    dsa_sign_bytes as core_dsa_sign_bytes,
-    dsa_verify as core_dsa_verify,
-    hkdf_sha3_256 as core_hkdf_sha3_256,
-    hybrid_decapsulate as core_hybrid_decapsulate,
-    hybrid_encapsulate as core_hybrid_encapsulate,
-    hybrid_keygen as core_hybrid_keygen,
-    kem_decapsulate as core_kem_decapsulate,
-    kem_encapsulate as core_kem_encapsulate,
+    chacha20poly1305_encrypt as core_chacha20poly1305_encrypt, dsa_keygen as core_dsa_keygen,
+    dsa_sign_bytes as core_dsa_sign_bytes, dsa_verify as core_dsa_verify,
+    hkdf_sha3_256 as core_hkdf_sha3_256, hybrid_decapsulate as core_hybrid_decapsulate,
+    hybrid_encapsulate as core_hybrid_encapsulate, hybrid_keygen as core_hybrid_keygen,
+    kem_decapsulate as core_kem_decapsulate, kem_encapsulate as core_kem_encapsulate,
     kem_keygen as core_kem_keygen,
-    DsaLevel as CoreDsaLevel,
-    DsaSignature as CoreDsaSignature,
-    DsaVerifyingKey as CoreDsaVerifyingKey,
-    HybridCiphertext as CoreHybridCiphertext,
-    HybridKeyPair as CoreHybridKeyPair,
-    HybridMode as CoreHybridMode,
-    HybridPublicKey as CoreHybridPublicKey,
-    HybridSecretKey as CoreHybridSecretKey,
-    KemCiphertext as CoreKemCiphertext,
-    KemKeyPair as CoreKemKeyPair,
-    KemLevel as CoreKemLevel,
-    KemPublicKey as CoreKemPublicKey,
-    KemSecretKey as CoreKemSecretKey,
-    NONCE_LEN,
 };
 
 // â”€â”€ Error helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -161,13 +147,19 @@ impl KemKeypair {
     /// The ML-KEM public (encapsulation) key.
     #[napi(getter, js_name = "publicKey")]
     pub fn public_key(&self) -> KemPublicKey {
-        KemPublicKey { bytes: self.pk_bytes.clone(), level: self.level }
+        KemPublicKey {
+            bytes: self.pk_bytes.clone(),
+            level: self.level,
+        }
     }
 
     /// The ML-KEM secret (decapsulation) key.
     #[napi(getter, js_name = "secretKey")]
     pub fn secret_key(&self) -> KemSecretKey {
-        KemSecretKey { bytes: self.sk_bytes.clone(), level: self.level }
+        KemSecretKey {
+            bytes: self.sk_bytes.clone(),
+            level: self.level,
+        }
     }
 }
 
@@ -190,12 +182,19 @@ impl Task for KemKeygenTask {
 
     fn compute(&mut self) -> napi::Result<(Vec<u8>, Vec<u8>)> {
         let kp = core_kem_keygen(self.level).map_err(into_err)?;
-        let CoreKemKeyPair { public_key, secret_key } = kp;
+        let CoreKemKeyPair {
+            public_key,
+            secret_key,
+        } = kp;
         Ok((public_key.to_bytes(), secret_key.to_bytes()))
     }
 
     fn resolve(&mut self, _env: Env, (pk, sk): (Vec<u8>, Vec<u8>)) -> napi::Result<KemKeypair> {
-        Ok(KemKeypair { pk_bytes: pk, sk_bytes: sk, level: self.level })
+        Ok(KemKeypair {
+            pk_bytes: pk,
+            sk_bytes: sk,
+            level: self.level,
+        })
     }
 }
 
@@ -223,7 +222,11 @@ impl Task for KemEncapsulateTask {
         Ok((ss.as_bytes().to_vec(), ct.to_bytes().to_vec()))
     }
 
-    fn resolve(&mut self, _env: Env, (ss, ct): (Vec<u8>, Vec<u8>)) -> napi::Result<KemEncapsulateResult> {
+    fn resolve(
+        &mut self,
+        _env: Env,
+        (ss, ct): (Vec<u8>, Vec<u8>),
+    ) -> napi::Result<KemEncapsulateResult> {
         Ok(KemEncapsulateResult {
             shared_secret: Buffer::from(ss),
             ciphertext: Buffer::from(ct),
@@ -264,7 +267,10 @@ impl Task for KemDecapsulateTask {
 
 /// Recover the shared secret from a KEM ciphertext using the secret key.
 #[napi(js_name = "kemDecapsulate")]
-pub fn kem_decapsulate(secret_key: &KemSecretKey, ciphertext: Buffer) -> AsyncTask<KemDecapsulateTask> {
+pub fn kem_decapsulate(
+    secret_key: &KemSecretKey,
+    ciphertext: Buffer,
+) -> AsyncTask<KemDecapsulateTask> {
     AsyncTask::new(KemDecapsulateTask {
         sk_bytes: secret_key.bytes.clone(),
         ct_bytes: ciphertext.to_vec(),
@@ -303,7 +309,10 @@ impl DsaKeypair {
     /// The ML-DSA verifying (public) key.
     #[napi(getter, js_name = "verifyingKey")]
     pub fn verifying_key(&self) -> DsaVerifyingKey {
-        DsaVerifyingKey { bytes: self.vk_bytes.clone(), level: self.level }
+        DsaVerifyingKey {
+            bytes: self.vk_bytes.clone(),
+            level: self.level,
+        }
     }
 }
 
@@ -325,7 +334,11 @@ impl Task for DsaKeygenTask {
     }
 
     fn resolve(&mut self, _env: Env, (sk, vk): (Vec<u8>, Vec<u8>)) -> napi::Result<DsaKeypair> {
-        Ok(DsaKeypair { sk_bytes: sk, vk_bytes: vk, level: self.level })
+        Ok(DsaKeypair {
+            sk_bytes: sk,
+            vk_bytes: vk,
+            level: self.level,
+        })
     }
 }
 
@@ -349,8 +362,8 @@ impl Task for DsaSignTask {
     type JsValue = Buffer;
 
     fn compute(&mut self) -> napi::Result<Vec<u8>> {
-        let sig = core_dsa_sign_bytes(self.level, &self.sk_bytes, &self.message)
-            .map_err(into_err)?;
+        let sig =
+            core_dsa_sign_bytes(self.level, &self.sk_bytes, &self.message).map_err(into_err)?;
         Ok(sig.as_bytes().to_vec())
     }
 
@@ -474,7 +487,10 @@ impl HybridKeypair {
     /// The hybrid secret key.
     #[napi(getter, js_name = "secretKey")]
     pub fn secret_key(&self) -> HybridSecretKey {
-        HybridSecretKey { sk_bytes: self.sk_bytes.clone(), mode: self.mode }
+        HybridSecretKey {
+            sk_bytes: self.sk_bytes.clone(),
+            mode: self.mode,
+        }
     }
 }
 
@@ -497,7 +513,10 @@ impl Task for HybridKeygenTask {
 
     fn compute(&mut self) -> napi::Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         let kp = core_hybrid_keygen(self.mode).map_err(into_err)?;
-        let CoreHybridKeyPair { public_key, secret_key } = kp;
+        let CoreHybridKeyPair {
+            public_key,
+            secret_key,
+        } = kp;
         let pk_classical = public_key.classical.as_bytes().to_vec();
         let pk_pqc = public_key.pqc.to_bytes();
         let sk_bytes = secret_key.to_bytes();
@@ -509,7 +528,12 @@ impl Task for HybridKeygenTask {
         _env: Env,
         (pk_classical, pk_pqc, sk_bytes): (Vec<u8>, Vec<u8>, Vec<u8>),
     ) -> napi::Result<HybridKeypair> {
-        Ok(HybridKeypair { pk_classical, pk_pqc, sk_bytes, mode: self.mode })
+        Ok(HybridKeypair {
+            pk_classical,
+            pk_pqc,
+            sk_bytes,
+            mode: self.mode,
+        })
     }
 }
 
@@ -518,7 +542,9 @@ impl Task for HybridKeygenTask {
 /// Defaults to `HybridMode.X25519Kyber768`.
 #[napi(js_name = "hybridKeygen")]
 pub fn hybrid_keygen(mode: Option<HybridMode>) -> AsyncTask<HybridKeygenTask> {
-    let m = mode.map(to_core_hybrid).unwrap_or(CoreHybridMode::X25519Kyber768);
+    let m = mode
+        .map(to_core_hybrid)
+        .unwrap_or(CoreHybridMode::X25519Kyber768);
     AsyncTask::new(HybridKeygenTask { mode: m })
 }
 
@@ -537,14 +563,22 @@ impl Task for HybridEncapsulateTask {
             .try_into()
             .map_err(|_| napi::Error::from_reason("invalid classical key bytes"))?;
         let classical = X25519Public::from(arr);
-        let pqc = CoreKemPublicKey::from_bytes(self.mode.kem_level(), &self.pk_pqc)
-            .map_err(into_err)?;
-        let core_pk = CoreHybridPublicKey { classical, pqc, mode: self.mode };
+        let pqc =
+            CoreKemPublicKey::from_bytes(self.mode.kem_level(), &self.pk_pqc).map_err(into_err)?;
+        let core_pk = CoreHybridPublicKey {
+            classical,
+            pqc,
+            mode: self.mode,
+        };
         let (ss, ct) = core_hybrid_encapsulate(&core_pk).map_err(into_err)?;
         Ok((ss.as_bytes().to_vec(), ct.to_bytes()))
     }
 
-    fn resolve(&mut self, _env: Env, (ss, ct): (Vec<u8>, Vec<u8>)) -> napi::Result<HybridEncapsulateResult> {
+    fn resolve(
+        &mut self,
+        _env: Env,
+        (ss, ct): (Vec<u8>, Vec<u8>),
+    ) -> napi::Result<HybridEncapsulateResult> {
         Ok(HybridEncapsulateResult {
             shared_secret: Buffer::from(ss),
             ciphertext: Buffer::from(ct),
@@ -573,10 +607,8 @@ impl Task for HybridDecapsulateTask {
     type JsValue = Buffer;
 
     fn compute(&mut self) -> napi::Result<Vec<u8>> {
-        let sk = CoreHybridSecretKey::from_bytes(self.mode, &self.sk_bytes)
-            .map_err(into_err)?;
-        let ct = CoreHybridCiphertext::from_bytes(self.mode, &self.ct_bytes)
-            .map_err(into_err)?;
+        let sk = CoreHybridSecretKey::from_bytes(self.mode, &self.sk_bytes).map_err(into_err)?;
+        let ct = CoreHybridCiphertext::from_bytes(self.mode, &self.ct_bytes).map_err(into_err)?;
         let result = core_hybrid_decapsulate(&sk, &ct).map_err(into_err)?;
         Ok(result.shared_secret.as_bytes().to_vec())
     }
@@ -633,7 +665,8 @@ pub fn aes256gcm_encrypt(
     let key_arr = to_key32(&key)?;
     let nonce_arr = to_nonce12(&nonce)?;
     let aad_bytes = aad.as_deref().unwrap_or(&[]);
-    let ct = core_aes256gcm_encrypt(&key_arr, &nonce_arr, &plaintext, aad_bytes).map_err(into_err)?;
+    let ct =
+        core_aes256gcm_encrypt(&key_arr, &nonce_arr, &plaintext, aad_bytes).map_err(into_err)?;
     Ok(Buffer::from(ct))
 }
 
@@ -650,7 +683,8 @@ pub fn aes256gcm_decrypt(
     let key_arr = to_key32(&key)?;
     let nonce_arr = to_nonce12(&nonce)?;
     let aad_bytes = aad.as_deref().unwrap_or(&[]);
-    let pt = core_aes256gcm_decrypt(&key_arr, &nonce_arr, &ciphertext, aad_bytes).map_err(into_err)?;
+    let pt =
+        core_aes256gcm_decrypt(&key_arr, &nonce_arr, &ciphertext, aad_bytes).map_err(into_err)?;
     Ok(Buffer::from(pt))
 }
 

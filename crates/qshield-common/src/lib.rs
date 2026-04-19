@@ -18,4 +18,3 @@ pub mod telemetry;
 pub use error::QShieldError;
 pub use id::new_id;
 pub use redacted::Redacted;
-

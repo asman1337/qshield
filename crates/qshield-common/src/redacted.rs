@@ -1,4 +1,4 @@
-﻿use std::fmt;
+use std::fmt;
 
 /// A wrapper type for sensitive values that prevents them from appearing in logs,
 /// debug output, or error messages.
@@ -17,7 +17,9 @@ impl<T: zeroize::Zeroize> Redacted<T> {
 
     /// Access the inner value. Panics if `into_inner` was already called.
     pub fn expose(&self) -> &T {
-        self.inner.as_ref().expect("Redacted value already consumed")
+        self.inner
+            .as_ref()
+            .expect("Redacted value already consumed")
     }
 
     /// Consume and return the inner value (caller owns it, not zeroized).

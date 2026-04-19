@@ -11,15 +11,18 @@
 
 use std::fmt;
 
-use ed25519_dalek::{Signature as Ed25519Sig, Signer, SigningKey as Ed25519SigningKey,
-                   Verifier, VerifyingKey as Ed25519VerifyingKey};
+use ed25519_dalek::{
+    Signature as Ed25519Sig, Signer, SigningKey as Ed25519SigningKey, Verifier,
+    VerifyingKey as Ed25519VerifyingKey,
+};
 use rand_core::OsRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use qshield_common::QShieldError;
 
-use crate::dsa::{dsa_keygen, dsa_sign, dsa_verify, DsaKeyPair, DsaLevel, DsaSignature,
-                 DsaVerifyingKey};
+use crate::dsa::{
+    DsaKeyPair, DsaLevel, DsaSignature, DsaVerifyingKey, dsa_keygen, dsa_sign, dsa_verify,
+};
 
 // ── Mode enum ──────────────────────────────────────────────────────────────
 
@@ -104,7 +107,10 @@ impl HybridSigningKey {
     /// Derive the hybrid verifying key.
     #[must_use]
     pub fn verifying_key(&self) -> HybridVerifyingKey {
-        let ed = self.ed25519.as_ref().expect("HybridSigningKey already zeroized");
+        let ed = self
+            .ed25519
+            .as_ref()
+            .expect("HybridSigningKey already zeroized");
         HybridVerifyingKey {
             mode: self.mode,
             ed25519_vk_bytes: ed.verifying_key().to_bytes(),
@@ -134,7 +140,9 @@ impl HybridSignature {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, QShieldError> {
         // Validate parse-ability up front so callers get a clear error.
         sig_parse(bytes)?;
-        Ok(Self { bytes: bytes.to_vec() })
+        Ok(Self {
+            bytes: bytes.to_vec(),
+        })
     }
 }
 
@@ -196,7 +204,10 @@ pub fn hybrid_sig_keygen(mode: HybridSigMode) -> Result<HybridSigningKey, QShiel
 /// # Errors
 /// Returns `SignatureCreation` if ML-DSA signing fails.
 pub fn hybrid_sign(sk: &HybridSigningKey, msg: &[u8]) -> Result<HybridSignature, QShieldError> {
-    let ed = sk.ed25519.as_ref().expect("HybridSigningKey already zeroized");
+    let ed = sk
+        .ed25519
+        .as_ref()
+        .expect("HybridSigningKey already zeroized");
     let ed_sig: Ed25519Sig = ed.sign(msg);
     let classical_bytes = ed_sig.to_bytes();
 
@@ -219,11 +230,16 @@ pub fn hybrid_verify(
 
     // ── Ed25519 ──
     let ed_vk = Ed25519VerifyingKey::from_bytes(&pk.ed25519_vk_bytes).map_err(|_| {
-        QShieldError::SignatureVerification { algorithm: "Ed25519 (invalid public key bytes)" }
+        QShieldError::SignatureVerification {
+            algorithm: "Ed25519 (invalid public key bytes)",
+        }
     })?;
-    let ed_sig_arr: [u8; 64] = classical_bytes.try_into().map_err(|_| {
-        QShieldError::SignatureVerification { algorithm: "Ed25519 (wrong signature length)" }
-    })?;
+    let ed_sig_arr: [u8; 64] =
+        classical_bytes
+            .try_into()
+            .map_err(|_| QShieldError::SignatureVerification {
+                algorithm: "Ed25519 (wrong signature length)",
+            })?;
     let ed_sig = Ed25519Sig::from_bytes(&ed_sig_arr);
     if ed_vk.verify(msg, &ed_sig).is_err() {
         return Ok(false);
@@ -252,9 +268,9 @@ pub fn extract_classical_sig(sig: &HybridSignature) -> Result<Vec<u8>, QShieldEr
 // HybridSignature serializes as a base64-encoded QSKE envelope.
 // HybridVerifyingKey serializes as a JSON object with "ed25519" and "pqc" fields.
 
+use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 use base64::Engine as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 
 impl Serialize for HybridSignature {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
@@ -275,7 +291,9 @@ impl<'de> Deserialize<'de> for HybridSignature {
             .map_err(serde::de::Error::custom)?;
         let env = QskeEnvelope::decode(&raw).map_err(serde::de::Error::custom)?;
         if env.algorithm != AlgorithmCode::Ed25519MlDsa65 {
-            return Err(serde::de::Error::custom("expected Ed25519MlDsa65 algorithm"));
+            return Err(serde::de::Error::custom(
+                "expected Ed25519MlDsa65 algorithm",
+            ));
         }
         if env.key_type != KeyType::Signature {
             return Err(serde::de::Error::custom("expected Signature key type"));
@@ -346,14 +364,21 @@ mod tests {
     fn classical_extraction_is_valid_ed25519() {
         let (sk, _vk, sig) = keygen_and_sign();
         let classical_bytes = extract_classical_sig(&sig).unwrap();
-        assert_eq!(classical_bytes.len(), 64, "Ed25519 signature is always 64 bytes");
+        assert_eq!(
+            classical_bytes.len(),
+            64,
+            "Ed25519 signature is always 64 bytes"
+        );
 
         // Verify independently using ed25519-dalek directly.
         let ed = sk.ed25519.as_ref().unwrap();
         let ed_vk = ed.verifying_key();
         let ed_sig_arr: [u8; 64] = classical_bytes.try_into().unwrap();
         let ed_sig = Ed25519Sig::from_bytes(&ed_sig_arr);
-        assert!(ed_vk.verify(MSG, &ed_sig).is_ok(), "classical sub-sig must be independently valid");
+        assert!(
+            ed_vk.verify(MSG, &ed_sig).is_ok(),
+            "classical sub-sig must be independently valid"
+        );
     }
 
     // ── Sub-signature independence ────────────────────────────────────────

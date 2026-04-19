@@ -23,7 +23,7 @@
 //!
 //! The checksum covers every byte before it (magic through payload inclusive).
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use qshield_common::QShieldError;
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -58,12 +58,12 @@ impl AlgorithmCode {
     #[must_use]
     pub fn to_u16(self) -> u16 {
         match self {
-            Self::MlKem512       => 0x0101,
-            Self::MlKem768       => 0x0102,
-            Self::MlKem1024      => 0x0103,
-            Self::MlDsa44        => 0x0201,
-            Self::MlDsa65        => 0x0202,
-            Self::MlDsa87        => 0x0203,
+            Self::MlKem512 => 0x0101,
+            Self::MlKem768 => 0x0102,
+            Self::MlKem1024 => 0x0103,
+            Self::MlDsa44 => 0x0201,
+            Self::MlDsa65 => 0x0202,
+            Self::MlDsa87 => 0x0203,
             Self::SlhDsaSha2128s => 0x0301,
             Self::SlhDsaSha2192f => 0x0302,
             Self::X25519MlKem768 => 0x0F01,
@@ -97,12 +97,12 @@ impl AlgorithmCode {
     #[must_use]
     pub fn pem_label(self) -> &'static str {
         match self {
-            Self::MlKem512       => "ML-KEM-512",
-            Self::MlKem768       => "ML-KEM-768",
-            Self::MlKem1024      => "ML-KEM-1024",
-            Self::MlDsa44        => "ML-DSA-44",
-            Self::MlDsa65        => "ML-DSA-65",
-            Self::MlDsa87        => "ML-DSA-87",
+            Self::MlKem512 => "ML-KEM-512",
+            Self::MlKem768 => "ML-KEM-768",
+            Self::MlKem1024 => "ML-KEM-1024",
+            Self::MlDsa44 => "ML-DSA-44",
+            Self::MlDsa65 => "ML-DSA-65",
+            Self::MlDsa87 => "ML-DSA-87",
             Self::SlhDsaSha2128s => "SLH-DSA-SHA2-128S",
             Self::SlhDsaSha2192f => "SLH-DSA-SHA2-192F",
             Self::X25519MlKem768 => "X25519-ML-KEM-768",
@@ -117,9 +117,9 @@ impl AlgorithmCode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum KeyType {
-    Public    = 0x01,
-    Secret    = 0x02,
-    Pair      = 0x03,
+    Public = 0x01,
+    Secret = 0x02,
+    Pair = 0x03,
     Signature = 0x04,
     Ciphertext = 0x05,
 }
@@ -149,10 +149,10 @@ impl KeyType {
     #[must_use]
     pub fn pem_label(self) -> &'static str {
         match self {
-            Self::Public     => "PUBLIC KEY",
-            Self::Secret     => "SECRET KEY",
-            Self::Pair       => "KEY PAIR",
-            Self::Signature  => "SIGNATURE",
+            Self::Public => "PUBLIC KEY",
+            Self::Secret => "SECRET KEY",
+            Self::Pair => "KEY PAIR",
+            Self::Signature => "SIGNATURE",
             Self::Ciphertext => "CIPHERTEXT",
         }
     }
@@ -175,8 +175,7 @@ impl QskeEnvelope {
     /// Panics if `payload.len()` exceeds `u32::MAX` (4 GB — won't happen in practice).
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
-        let payload_len = u32::try_from(self.payload.len())
-            .expect("payload exceeds 4 GB");
+        let payload_len = u32::try_from(self.payload.len()).expect("payload exceeds 4 GB");
         let total = HEADER_LEN + self.payload.len() + CHECKSUM_LEN;
         let mut buf = Vec::with_capacity(total);
 
@@ -221,7 +220,7 @@ impl QskeEnvelope {
         }
 
         let algorithm = AlgorithmCode::from_u16(u16::from_be_bytes([bytes[5], bytes[6]]))?;
-        let key_type  = KeyType::from_u8(bytes[7])?;
+        let key_type = KeyType::from_u8(bytes[7])?;
         let payload_len = u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]) as usize;
 
         let expected_total = HEADER_LEN + payload_len + CHECKSUM_LEN;
@@ -233,7 +232,7 @@ impl QskeEnvelope {
         }
 
         // Verify CRC32C over everything before the checksum field.
-        let data_end   = HEADER_LEN + payload_len;
+        let data_end = HEADER_LEN + payload_len;
         let stored_crc = u32::from_be_bytes([
             bytes[data_end],
             bytes[data_end + 1],
@@ -246,7 +245,11 @@ impl QskeEnvelope {
         }
 
         let payload = bytes[HEADER_LEN..data_end].to_vec();
-        Ok(Self { algorithm, key_type, payload })
+        Ok(Self {
+            algorithm,
+            key_type,
+            payload,
+        })
     }
 
     // ── PEM ───────────────────────────────────────────────────────────────
@@ -265,7 +268,8 @@ impl QskeEnvelope {
         let b64 = BASE64.encode(&encoded_bytes);
 
         // Wrap base64 at 64 chars per line.
-        let lines: String = b64.as_bytes()
+        let lines: String = b64
+            .as_bytes()
             .chunks(64)
             .map(|c| std::str::from_utf8(c).unwrap())
             .collect::<Vec<_>>()
@@ -286,10 +290,10 @@ impl QskeEnvelope {
 
         // Find begin line.
         let begin_marker = "-----BEGIN QSHIELD ";
-        let end_marker   = "-----END QSHIELD ";
+        let end_marker = "-----END QSHIELD ";
 
         let begin_pos = pem.find(begin_marker).ok_or_else(malformed)?;
-        let end_pos   = pem.find(end_marker).ok_or_else(malformed)?;
+        let end_pos = pem.find(end_marker).ok_or_else(malformed)?;
 
         // Extract base64 body (everything between the two header lines).
         let after_begin_line = pem[begin_pos..]
@@ -309,7 +313,11 @@ impl QskeEnvelope {
     // ── Private helpers ───────────────────────────────────────────────────
 
     fn pem_label(&self) -> String {
-        format!("{} {}", self.algorithm.pem_label(), self.key_type.pem_label())
+        format!(
+            "{} {}",
+            self.algorithm.pem_label(),
+            self.key_type.pem_label()
+        )
     }
 }
 
@@ -323,7 +331,11 @@ impl QskeEnvelope {
 /// Used by key-type serde impls.
 #[must_use]
 pub fn to_envelope_b64(algorithm: AlgorithmCode, key_type: KeyType, payload: &[u8]) -> String {
-    let env = QskeEnvelope { algorithm, key_type, payload: payload.to_vec() };
+    let env = QskeEnvelope {
+        algorithm,
+        key_type,
+        payload: payload.to_vec(),
+    };
     BASE64.encode(env.encode())
 }
 
@@ -338,20 +350,28 @@ pub fn from_envelope_b64(
     expected_algo: AlgorithmCode,
     expected_key_type: KeyType,
 ) -> Result<Vec<u8>, QShieldError> {
-    let bytes = BASE64.decode(b64).map_err(|_| QShieldError::UnsupportedAlgorithm {
-        name: "QSKE: invalid base64".to_string(),
-    })?;
+    let bytes = BASE64
+        .decode(b64)
+        .map_err(|_| QShieldError::UnsupportedAlgorithm {
+            name: "QSKE: invalid base64".to_string(),
+        })?;
     let env = QskeEnvelope::decode(&bytes)?;
     if env.algorithm != expected_algo {
         return Err(QShieldError::UnsupportedAlgorithm {
-            name: format!("QSKE: algorithm mismatch: expected 0x{:04X}, got 0x{:04X}",
-                expected_algo.to_u16(), env.algorithm.to_u16()),
+            name: format!(
+                "QSKE: algorithm mismatch: expected 0x{:04X}, got 0x{:04X}",
+                expected_algo.to_u16(),
+                env.algorithm.to_u16()
+            ),
         });
     }
     if env.key_type != expected_key_type {
         return Err(QShieldError::UnsupportedAlgorithm {
-            name: format!("QSKE: key type mismatch: expected 0x{:02X}, got 0x{:02X}",
-                expected_key_type.to_u8(), env.key_type.to_u8()),
+            name: format!(
+                "QSKE: key type mismatch: expected 0x{:02X}, got 0x{:02X}",
+                expected_key_type.to_u8(),
+                env.key_type.to_u8()
+            ),
         });
     }
     Ok(env.payload)
@@ -483,7 +503,11 @@ mod tests {
             (AlgorithmCode::Ed25519MlDsa65, KeyType::Signature),
             (AlgorithmCode::X25519MlKem768, KeyType::Ciphertext),
         ] {
-            let env = QskeEnvelope { algorithm: algo, key_type: kt, payload: vec![1, 2, 3] };
+            let env = QskeEnvelope {
+                algorithm: algo,
+                key_type: kt,
+                payload: vec![1, 2, 3],
+            };
             let decoded = QskeEnvelope::from_pem(&env.to_pem()).unwrap();
             assert_eq!(decoded, env);
         }
@@ -521,7 +545,7 @@ mod tests {
 
     #[test]
     fn serde_json_kem_public_key() {
-        use crate::kem::{kem_keygen, KemLevel};
+        use crate::kem::{KemLevel, kem_keygen};
         let kp = kem_keygen(KemLevel::Kem768).unwrap();
         let json = serde_json::to_string(&kp.public_key).unwrap();
         let restored: crate::kem::KemPublicKey = serde_json::from_str(&json).unwrap();
@@ -530,7 +554,7 @@ mod tests {
 
     #[test]
     fn serde_json_kem_ciphertext() {
-        use crate::kem::{kem_encapsulate, kem_keygen, KemLevel};
+        use crate::kem::{KemLevel, kem_encapsulate, kem_keygen};
         let kp = kem_keygen(KemLevel::Kem512).unwrap();
         let (_ss, ct) = kem_encapsulate(&kp.public_key).unwrap();
         let json = serde_json::to_string(&ct).unwrap();
@@ -540,7 +564,7 @@ mod tests {
 
     #[test]
     fn serde_json_dsa_verifying_key() {
-        use crate::dsa::{dsa_keygen, DsaLevel};
+        use crate::dsa::{DsaLevel, dsa_keygen};
         let kp = dsa_keygen(DsaLevel::Dsa65).unwrap();
         let vk = kp.verifying_key();
         let json = serde_json::to_string(&vk).unwrap();
@@ -550,7 +574,7 @@ mod tests {
 
     #[test]
     fn serde_json_dsa_signature() {
-        use crate::dsa::{dsa_keygen, dsa_sign, DsaLevel};
+        use crate::dsa::{DsaLevel, dsa_keygen, dsa_sign};
         let kp = dsa_keygen(DsaLevel::Dsa44).unwrap();
         let sig = dsa_sign(&kp, b"msg").unwrap();
         let json = serde_json::to_string(&sig).unwrap();
@@ -560,7 +584,7 @@ mod tests {
 
     #[test]
     fn serde_json_hybrid_signature() {
-        use crate::hybrid_sig::{hybrid_sig_keygen, hybrid_sign, HybridSigMode};
+        use crate::hybrid_sig::{HybridSigMode, hybrid_sig_keygen, hybrid_sign};
         let sk = hybrid_sig_keygen(HybridSigMode::Ed25519Dilithium65).unwrap();
         let sig = hybrid_sign(&sk, b"msg").unwrap();
         let json = serde_json::to_string(&sig).unwrap();

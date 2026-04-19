@@ -9,9 +9,7 @@
 // Note: the same key/nonce pair is reused across iterations for benchmark
 // repeatability.  This is intentional and safe for a benchmark only.
 
-use criterion::{
-    black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use qshield_core::{
     aes256gcm_decrypt, aes256gcm_encrypt, chacha20poly1305_decrypt, chacha20poly1305_encrypt,
 };
@@ -39,8 +37,7 @@ fn bench_aes256gcm_encrypt(c: &mut Criterion) {
             &plaintext,
             |b, pt| {
                 b.iter(|| {
-                    aes256gcm_encrypt(black_box(KEY), black_box(NONCE), black_box(pt), b"")
-                        .unwrap()
+                    aes256gcm_encrypt(black_box(KEY), black_box(NONCE), black_box(pt), b"").unwrap()
                 })
             },
         );
@@ -61,8 +58,7 @@ fn bench_aes256gcm_decrypt(c: &mut Criterion) {
             &ciphertext,
             |b, ct| {
                 b.iter(|| {
-                    aes256gcm_decrypt(black_box(KEY), black_box(NONCE), black_box(ct), b"")
-                        .unwrap()
+                    aes256gcm_decrypt(black_box(KEY), black_box(NONCE), black_box(ct), b"").unwrap()
                 })
             },
         );
@@ -84,13 +80,8 @@ fn bench_chacha20_encrypt(c: &mut Criterion) {
             &plaintext,
             |b, pt| {
                 b.iter(|| {
-                    chacha20poly1305_encrypt(
-                        black_box(KEY),
-                        black_box(NONCE),
-                        black_box(pt),
-                        b"",
-                    )
-                    .unwrap()
+                    chacha20poly1305_encrypt(black_box(KEY), black_box(NONCE), black_box(pt), b"")
+                        .unwrap()
                 })
             },
         );
@@ -111,13 +102,8 @@ fn bench_chacha20_decrypt(c: &mut Criterion) {
             &ciphertext,
             |b, ct| {
                 b.iter(|| {
-                    chacha20poly1305_decrypt(
-                        black_box(KEY),
-                        black_box(NONCE),
-                        black_box(ct),
-                        b"",
-                    )
-                    .unwrap()
+                    chacha20poly1305_decrypt(black_box(KEY), black_box(NONCE), black_box(ct), b"")
+                        .unwrap()
                 })
             },
         );

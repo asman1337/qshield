@@ -2,7 +2,7 @@
 //
 // Measures HKDF-SHA3-256 key derivation at two output lengths: 32 B and 256 B.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use qshield_core::hkdf_sha3_256;
 
 const IKM: &[u8] = b"bench_input_key_material_32bytes";

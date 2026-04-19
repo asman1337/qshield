@@ -19,8 +19,8 @@
 //! `decrypt` expects the same layout and strips the tag internally.
 
 use aes_gcm::{
-    aead::{Aead, KeyInit, Payload},
     Aes256Gcm, Nonce as AesNonce,
+    aead::{Aead, KeyInit, Payload},
 };
 use chacha20poly1305::{ChaCha20Poly1305, Nonce as ChaNonce};
 use rand_core::OsRng;
@@ -96,13 +96,19 @@ pub fn aes256gcm_encrypt(
     plaintext: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, QShieldError> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| QShieldError::Internal { message: "AES-256-GCM key init failed".into() })?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| QShieldError::Internal {
+        message: "AES-256-GCM key init failed".into(),
+    })?;
     let n = AesNonce::from_slice(nonce);
-    let payload = Payload { msg: plaintext, aad };
+    let payload = Payload {
+        msg: plaintext,
+        aad,
+    };
     cipher
         .encrypt(n, payload)
-        .map_err(|_| QShieldError::Internal { message: "AES-256-GCM encrypt failed".into() })
+        .map_err(|_| QShieldError::Internal {
+            message: "AES-256-GCM encrypt failed".into(),
+        })
 }
 
 /// Decrypt `ciphertext_with_tag` (ciphertext || 16-byte tag) with AES-256-GCM.
@@ -118,10 +124,14 @@ pub fn aes256gcm_decrypt(
     ciphertext_with_tag: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, QShieldError> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| QShieldError::Internal { message: "AES-256-GCM key init failed".into() })?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| QShieldError::Internal {
+        message: "AES-256-GCM key init failed".into(),
+    })?;
     let n = AesNonce::from_slice(nonce);
-    let payload = Payload { msg: ciphertext_with_tag, aad };
+    let payload = Payload {
+        msg: ciphertext_with_tag,
+        aad,
+    };
     cipher
         .decrypt(n, payload)
         .map_err(|_| QShieldError::DecryptionFailed)
@@ -142,13 +152,19 @@ pub fn chacha20poly1305_encrypt(
     plaintext: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, QShieldError> {
-    let cipher = ChaCha20Poly1305::new_from_slice(key)
-        .map_err(|_| QShieldError::Internal { message: "ChaCha20Poly1305 key init failed".into() })?;
+    let cipher = ChaCha20Poly1305::new_from_slice(key).map_err(|_| QShieldError::Internal {
+        message: "ChaCha20Poly1305 key init failed".into(),
+    })?;
     let n = ChaNonce::from_slice(nonce);
-    let payload = Payload { msg: plaintext, aad };
+    let payload = Payload {
+        msg: plaintext,
+        aad,
+    };
     cipher
         .encrypt(n, payload)
-        .map_err(|_| QShieldError::Internal { message: "ChaCha20Poly1305 encrypt failed".into() })
+        .map_err(|_| QShieldError::Internal {
+            message: "ChaCha20Poly1305 encrypt failed".into(),
+        })
 }
 
 /// Decrypt `ciphertext_with_tag` (ciphertext || 16-byte tag) with ChaCha20-Poly1305.
@@ -161,10 +177,14 @@ pub fn chacha20poly1305_decrypt(
     ciphertext_with_tag: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, QShieldError> {
-    let cipher = ChaCha20Poly1305::new_from_slice(key)
-        .map_err(|_| QShieldError::Internal { message: "ChaCha20Poly1305 key init failed".into() })?;
+    let cipher = ChaCha20Poly1305::new_from_slice(key).map_err(|_| QShieldError::Internal {
+        message: "ChaCha20Poly1305 key init failed".into(),
+    })?;
     let n = ChaNonce::from_slice(nonce);
-    let payload = Payload { msg: ciphertext_with_tag, aad };
+    let payload = Payload {
+        msg: ciphertext_with_tag,
+        aad,
+    };
     cipher
         .decrypt(n, payload)
         .map_err(|_| QShieldError::DecryptionFailed)
@@ -193,7 +213,9 @@ pub fn aes256gcm_encrypt_streaming(
     chunk_size: usize,
 ) -> Result<Vec<([u8; NONCE_LEN], Vec<u8>)>, QShieldError> {
     if chunk_size == 0 {
-        return Err(QShieldError::KeyDerivation { reason: "chunk_size must be > 0" });
+        return Err(QShieldError::KeyDerivation {
+            reason: "chunk_size must be > 0",
+        });
     }
     let mut prefix = [0u8; 4];
     prefix.copy_from_slice(&base_nonce[..4]);
@@ -301,7 +323,11 @@ mod tests {
         let ct = aes256gcm_encrypt(&key, &nonce, b"", b"").expect("nist vector encrypt");
         let tag: &[u8] = &ct; // entire output is the tag when PT is empty
         let expected_tag = hex::decode("530f8afbc74536b9a963b4f1c4cb738b").unwrap();
-        assert_eq!(tag, expected_tag.as_slice(), "NIST AES-GCM-256 vector (empty PT)");
+        assert_eq!(
+            tag,
+            expected_tag.as_slice(),
+            "NIST AES-GCM-256 vector (empty PT)"
+        );
     }
 
     // ── ChaCha20-Poly1305 ────────────────────────────────────────────────────
@@ -324,8 +350,7 @@ mod tests {
     fn chacha20poly1305_tampered_ciphertext_fails() {
         let key = random_key();
         let nonce = generate_nonce();
-        let mut ct =
-            chacha20poly1305_encrypt(&key, &nonce, b"secret", b"").expect("encrypt");
+        let mut ct = chacha20poly1305_encrypt(&key, &nonce, b"secret", b"").expect("encrypt");
         *ct.last_mut().unwrap() ^= 0x01;
         assert!(matches!(
             chacha20poly1305_decrypt(&key, &nonce, &ct, b""),
@@ -349,10 +374,8 @@ mod tests {
     // be added once an authoritative hex source is confirmed.
     #[test]
     fn chacha20poly1305_cipher_differs_from_plaintext() {
-        let key = hex::decode(
-            "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
-        )
-        .unwrap();
+        let key = hex::decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f")
+            .unwrap();
         let nonce = hex::decode("070000004041424344454647").unwrap();
         let pt = b"Ladies and Gentlemen of the class of '99";
         let aad = hex::decode("50515253c0c1c2c3c4c5c6c7").unwrap();
@@ -362,7 +385,11 @@ mod tests {
 
         let ct = chacha20poly1305_encrypt(&key_arr, &nonce_arr, pt, &aad).expect("encrypt");
         assert_eq!(ct.len(), pt.len() + TAG_LEN);
-        assert_ne!(&ct[..pt.len()], pt.as_slice(), "ciphertext must differ from plaintext");
+        assert_ne!(
+            &ct[..pt.len()],
+            pt.as_slice(),
+            "ciphertext must differ from plaintext"
+        );
 
         let decrypted = chacha20poly1305_decrypt(&key_arr, &nonce_arr, &ct, &aad).expect("decrypt");
         assert_eq!(decrypted.as_slice(), pt.as_slice());
@@ -377,9 +404,13 @@ mod tests {
         let plaintext: Vec<u8> = (0u8..200).collect();
         let aad = b"stream";
 
-        let chunks =
-            aes256gcm_encrypt_streaming(&key, &base_nonce, &plaintext, aad, 64).expect("stream encrypt");
-        assert_eq!(chunks.len(), 4, "200 bytes / 64-byte chunks = 4 chunks (64+64+64+8)");
+        let chunks = aes256gcm_encrypt_streaming(&key, &base_nonce, &plaintext, aad, 64)
+            .expect("stream encrypt");
+        assert_eq!(
+            chunks.len(),
+            4,
+            "200 bytes / 64-byte chunks = 4 chunks (64+64+64+8)"
+        );
 
         let recovered = aes256gcm_decrypt_streaming(&key, &chunks, aad).expect("stream decrypt");
         assert_eq!(recovered, plaintext);

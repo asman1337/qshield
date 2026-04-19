@@ -10,41 +10,64 @@ use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use rand::RngCore;
+use qshield_common::QShieldError;
 use qshield_core::{
-    aes256gcm_decrypt as core_aes256gcm_decrypt,
+    DsaLevel, HybridMode, KemLevel, NONCE_LEN, aes256gcm_decrypt as core_aes256gcm_decrypt,
     aes256gcm_encrypt as core_aes256gcm_encrypt,
     chacha20poly1305_decrypt as core_chacha20poly1305_decrypt,
-    chacha20poly1305_encrypt as core_chacha20poly1305_encrypt,
-    dsa_keygen as core_dsa_keygen,
-    dsa_sign as core_dsa_sign,
-    dsa_verify as core_dsa_verify,
-    hkdf_sha3_256 as core_hkdf_sha3_256,
-    hybrid_decapsulate as core_hybrid_decapsulate,
-    hybrid_encapsulate as core_hybrid_encapsulate,
-    hybrid_keygen as core_hybrid_keygen,
-    kem_decapsulate as core_kem_decapsulate,
-    kem_encapsulate as core_kem_encapsulate,
-    kem_keygen as core_kem_keygen,
-    DsaLevel, HybridMode, KemLevel,
-    NONCE_LEN,
+    chacha20poly1305_encrypt as core_chacha20poly1305_encrypt, dsa_keygen as core_dsa_keygen,
+    dsa_sign as core_dsa_sign, dsa_verify as core_dsa_verify, hkdf_sha3_256 as core_hkdf_sha3_256,
+    hybrid_decapsulate as core_hybrid_decapsulate, hybrid_encapsulate as core_hybrid_encapsulate,
+    hybrid_keygen as core_hybrid_keygen, kem_decapsulate as core_kem_decapsulate,
+    kem_encapsulate as core_kem_encapsulate, kem_keygen as core_kem_keygen,
 };
-use qshield_common::QShieldError;
+use rand::RngCore;
 
 // ── Python exception hierarchy ─────────────────────────────────────────────
 
-create_exception!(qshield, PyQShieldError, PyException, "Base exception for all QShield errors.");
-create_exception!(qshield, PyDecapsulationError, PyQShieldError, "Decapsulation or AEAD authentication failed.");
-create_exception!(qshield, PyInvalidKeyLengthError, PyQShieldError, "Key or ciphertext has wrong byte length.");
-create_exception!(qshield, PySignatureError, PyQShieldError, "Signature creation or verification failed.");
-create_exception!(qshield, PyKeyDerivationError, PyQShieldError, "HKDF key derivation failed.");
-create_exception!(qshield, PyUnsupportedAlgorithmError, PyQShieldError, "Algorithm code or level is not supported.");
+create_exception!(
+    qshield,
+    PyQShieldError,
+    PyException,
+    "Base exception for all QShield errors."
+);
+create_exception!(
+    qshield,
+    PyDecapsulationError,
+    PyQShieldError,
+    "Decapsulation or AEAD authentication failed."
+);
+create_exception!(
+    qshield,
+    PyInvalidKeyLengthError,
+    PyQShieldError,
+    "Key or ciphertext has wrong byte length."
+);
+create_exception!(
+    qshield,
+    PySignatureError,
+    PyQShieldError,
+    "Signature creation or verification failed."
+);
+create_exception!(
+    qshield,
+    PyKeyDerivationError,
+    PyQShieldError,
+    "HKDF key derivation failed."
+);
+create_exception!(
+    qshield,
+    PyUnsupportedAlgorithmError,
+    PyQShieldError,
+    "Algorithm code or level is not supported."
+);
 
 // Convert a Rust QShieldError into the most appropriate Python exception.
 fn to_py_err(e: QShieldError) -> PyErr {
     match &e {
-        QShieldError::DecryptionFailed
-        | QShieldError::Decapsulation { .. } => PyDecapsulationError::new_err(e.to_string()),
+        QShieldError::DecryptionFailed | QShieldError::Decapsulation { .. } => {
+            PyDecapsulationError::new_err(e.to_string())
+        }
         QShieldError::InvalidKeyLength { .. } | QShieldError::InvalidNonce { .. } => {
             PyInvalidKeyLengthError::new_err(e.to_string())
         }
@@ -63,10 +86,10 @@ fn to_py_err(e: QShieldError) -> PyErr {
 
 fn parse_kem_level(level: &str) -> PyResult<KemLevel> {
     match level {
-        "512"  => Ok(KemLevel::Kem512),
-        "768"  => Ok(KemLevel::Kem768),
+        "512" => Ok(KemLevel::Kem512),
+        "768" => Ok(KemLevel::Kem768),
         "1024" => Ok(KemLevel::Kem1024),
-        other  => Err(PyUnsupportedAlgorithmError::new_err(format!(
+        other => Err(PyUnsupportedAlgorithmError::new_err(format!(
             "unknown KEM level {other:?}; expected \"512\", \"768\", or \"1024\""
         ))),
     }
@@ -85,7 +108,7 @@ fn parse_dsa_level(level: &str) -> PyResult<DsaLevel> {
 
 fn parse_hybrid_mode(mode: &str) -> PyResult<HybridMode> {
     match mode {
-        "X25519Kyber768"  => Ok(HybridMode::X25519Kyber768),
+        "X25519Kyber768" => Ok(HybridMode::X25519Kyber768),
         "X25519Kyber1024" => Ok(HybridMode::X25519Kyber1024),
         other => Err(PyUnsupportedAlgorithmError::new_err(format!(
             "unknown hybrid mode {other:?}; expected \"X25519Kyber768\" or \"X25519Kyber1024\""
@@ -95,8 +118,8 @@ fn parse_hybrid_mode(mode: &str) -> PyResult<HybridMode> {
 
 fn kem_level_str(level: KemLevel) -> &'static str {
     match level {
-        KemLevel::Kem512  => "512",
-        KemLevel::Kem768  => "768",
+        KemLevel::Kem512 => "512",
+        KemLevel::Kem768 => "768",
         KemLevel::Kem1024 => "1024",
     }
 }
@@ -131,7 +154,10 @@ impl PyKemPublicKey {
     }
 
     fn __repr__(&self) -> String {
-        format!("KemPublicKey(level=\"{}\")", kem_level_str(self.inner.level()))
+        format!(
+            "KemPublicKey(level=\"{}\")",
+            kem_level_str(self.inner.level())
+        )
     }
 }
 
@@ -157,7 +183,10 @@ impl PyKemSecretKey {
     }
 
     fn __repr__(&self) -> String {
-        format!("KemSecretKey(level=\"{}\")", kem_level_str(self.inner.level()))
+        format!(
+            "KemSecretKey(level=\"{}\")",
+            kem_level_str(self.inner.level())
+        )
     }
 }
 
@@ -181,7 +210,10 @@ impl PyKemCiphertext {
     }
 
     fn __repr__(&self) -> String {
-        format!("KemCiphertext(level=\"{}\")", kem_level_str(self.inner.level()))
+        format!(
+            "KemCiphertext(level=\"{}\")",
+            kem_level_str(self.inner.level())
+        )
     }
 }
 
@@ -232,7 +264,10 @@ impl PyDsaVerifyingKey {
     }
 
     fn __repr__(&self) -> String {
-        format!("DsaVerifyingKey(level=\"{}\")", dsa_level_str(self.inner.level()))
+        format!(
+            "DsaVerifyingKey(level=\"{}\")",
+            dsa_level_str(self.inner.level())
+        )
     }
 }
 
@@ -256,7 +291,10 @@ impl PyDsaSignature {
     }
 
     fn __repr__(&self) -> String {
-        format!("DsaSignature(level=\"{}\")", dsa_level_str(self.inner.level()))
+        format!(
+            "DsaSignature(level=\"{}\")",
+            dsa_level_str(self.inner.level())
+        )
     }
 }
 
@@ -271,7 +309,9 @@ impl PyDsaKeypair {
     /// Returns a copy of the verifying (public) key.
     #[getter]
     fn verifying_key(&self) -> PyDsaVerifyingKey {
-        PyDsaVerifyingKey { inner: self.inner.verifying_key() }
+        PyDsaVerifyingKey {
+            inner: self.inner.verifying_key(),
+        }
     }
 
     /// Security level: "44", "65", or "87".
@@ -281,7 +321,10 @@ impl PyDsaKeypair {
     }
 
     fn __repr__(&self) -> String {
-        format!("DsaKeypair(level=\"{}\")", dsa_level_str(self.inner.level()))
+        format!(
+            "DsaKeypair(level=\"{}\")",
+            dsa_level_str(self.inner.level())
+        )
     }
 }
 
@@ -315,9 +358,12 @@ impl PyHybridPublicKey {
         use qshield_core::KemPublicKey;
         use x25519_dalek::PublicKey as X25519Public;
         let classical = X25519Public::from(self.classical_bytes);
-        let pqc = KemPublicKey::from_bytes(self.kem_level, &self.pqc_bytes)
-            .map_err(to_py_err)?;
-        Ok(qshield_core::HybridPublicKey { classical, pqc, mode: self.mode })
+        let pqc = KemPublicKey::from_bytes(self.kem_level, &self.pqc_bytes).map_err(to_py_err)?;
+        Ok(qshield_core::HybridPublicKey {
+            classical,
+            pqc,
+            mode: self.mode,
+        })
     }
 }
 
@@ -425,10 +471,16 @@ impl PyHybridKeypair {
 fn kem_keygen(py: Python<'_>, level: &str) -> PyResult<PyKemKeypair> {
     let kem_level = parse_kem_level(level)?;
     let kp = core_kem_keygen(kem_level).map_err(to_py_err)?;
-    let qshield_core::KemKeyPair { public_key, secret_key } = kp;
+    let qshield_core::KemKeyPair {
+        public_key,
+        secret_key,
+    } = kp;
     let py_pk = Py::new(py, PyKemPublicKey { inner: public_key })?;
     let py_sk = Py::new(py, PyKemSecretKey { inner: secret_key })?;
-    Ok(PyKemKeypair { public_key: py_pk, secret_key: py_sk })
+    Ok(PyKemKeypair {
+        public_key: py_pk,
+        secret_key: py_sk,
+    })
 }
 
 /// Encapsulate a shared secret using an ML-KEM public key.
@@ -515,8 +567,8 @@ fn dsa_verify(
     message: &[u8],
     signature: &PyDsaSignature,
 ) -> PyResult<bool> {
-    let valid = core_dsa_verify(&verifying_key.inner, message, &signature.inner)
-        .map_err(to_py_err)?;
+    let valid =
+        core_dsa_verify(&verifying_key.inner, message, &signature.inner).map_err(to_py_err)?;
     Ok(valid)
 }
 
@@ -534,10 +586,16 @@ fn dsa_verify(
 fn hybrid_keygen(py: Python<'_>, mode: &str) -> PyResult<PyHybridKeypair> {
     let hybrid_mode = parse_hybrid_mode(mode)?;
     let kp = core_hybrid_keygen(hybrid_mode).map_err(to_py_err)?;
-    let qshield_core::HybridKeyPair { public_key, secret_key } = kp;
+    let qshield_core::HybridKeyPair {
+        public_key,
+        secret_key,
+    } = kp;
     let py_pk = Py::new(py, PyHybridPublicKey::from_core(&public_key))?;
     let py_sk = Py::new(py, PyHybridSecretKey { inner: secret_key })?;
-    Ok(PyHybridKeypair { public_key: py_pk, secret_key: py_sk })
+    Ok(PyHybridKeypair {
+        public_key: py_pk,
+        secret_key: py_sk,
+    })
 }
 
 /// Encapsulate a shared secret using a hybrid public key.
@@ -556,7 +614,13 @@ fn hybrid_encapsulate<'py>(
     let result = core_hybrid_encapsulate(&core_pk).map_err(to_py_err)?;
     let mode = public_key.mode;
     let ss_bytes = PyBytes::new(py, result.0.as_bytes());
-    Ok((ss_bytes, PyHybridCiphertext { inner: result.1, mode }))
+    Ok((
+        ss_bytes,
+        PyHybridCiphertext {
+            inner: result.1,
+            mode,
+        },
+    ))
 }
 
 /// Recover a shared secret from a hybrid ciphertext using a secret key.
@@ -573,8 +637,8 @@ fn hybrid_decapsulate<'py>(
     secret_key: &PyHybridSecretKey,
     ciphertext: &PyHybridCiphertext,
 ) -> PyResult<Bound<'py, PyBytes>> {
-    let result = core_hybrid_decapsulate(&secret_key.inner, &ciphertext.inner)
-        .map_err(to_py_err)?;
+    let result =
+        core_hybrid_decapsulate(&secret_key.inner, &ciphertext.inner).map_err(to_py_err)?;
     Ok(PyBytes::new(py, result.shared_secret.as_bytes()))
 }
 
@@ -602,7 +666,10 @@ fn aes256gcm_encrypt<'py>(
         PyInvalidKeyLengthError::new_err(format!("AES key must be 32 bytes, got {}", key.len()))
     })?;
     let nonce: &[u8; NONCE_LEN] = nonce.try_into().map_err(|_| {
-        PyInvalidKeyLengthError::new_err(format!("AES nonce must be {NONCE_LEN} bytes, got {}", nonce.len()))
+        PyInvalidKeyLengthError::new_err(format!(
+            "AES nonce must be {NONCE_LEN} bytes, got {}",
+            nonce.len()
+        ))
     })?;
     let ct = core_aes256gcm_encrypt(key, nonce, plaintext, aad).map_err(to_py_err)?;
     Ok(PyBytes::new(py, &ct))
@@ -633,7 +700,10 @@ fn aes256gcm_decrypt<'py>(
         PyInvalidKeyLengthError::new_err(format!("AES key must be 32 bytes, got {}", key.len()))
     })?;
     let nonce: &[u8; NONCE_LEN] = nonce.try_into().map_err(|_| {
-        PyInvalidKeyLengthError::new_err(format!("AES nonce must be {NONCE_LEN} bytes, got {}", nonce.len()))
+        PyInvalidKeyLengthError::new_err(format!(
+            "AES nonce must be {NONCE_LEN} bytes, got {}",
+            nonce.len()
+        ))
     })?;
     let pt = core_aes256gcm_decrypt(key, nonce, ciphertext, aad).map_err(to_py_err)?;
     Ok(PyBytes::new(py, &pt))
@@ -663,7 +733,10 @@ fn chacha20poly1305_encrypt<'py>(
         PyInvalidKeyLengthError::new_err(format!("ChaCha key must be 32 bytes, got {}", key.len()))
     })?;
     let nonce: &[u8; NONCE_LEN] = nonce.try_into().map_err(|_| {
-        PyInvalidKeyLengthError::new_err(format!("ChaCha nonce must be {NONCE_LEN} bytes, got {}", nonce.len()))
+        PyInvalidKeyLengthError::new_err(format!(
+            "ChaCha nonce must be {NONCE_LEN} bytes, got {}",
+            nonce.len()
+        ))
     })?;
     let ct = core_chacha20poly1305_encrypt(key, nonce, plaintext, aad).map_err(to_py_err)?;
     Ok(PyBytes::new(py, &ct))
@@ -685,7 +758,10 @@ fn chacha20poly1305_decrypt<'py>(
         PyInvalidKeyLengthError::new_err(format!("ChaCha key must be 32 bytes, got {}", key.len()))
     })?;
     let nonce: &[u8; NONCE_LEN] = nonce.try_into().map_err(|_| {
-        PyInvalidKeyLengthError::new_err(format!("ChaCha nonce must be {NONCE_LEN} bytes, got {}", nonce.len()))
+        PyInvalidKeyLengthError::new_err(format!(
+            "ChaCha nonce must be {NONCE_LEN} bytes, got {}",
+            nonce.len()
+        ))
     })?;
     let pt = core_chacha20poly1305_decrypt(key, nonce, ciphertext, aad).map_err(to_py_err)?;
     Ok(PyBytes::new(py, &pt))
@@ -736,11 +812,23 @@ fn random_bytes<'py>(py: Python<'py>, n: usize) -> Bound<'py, PyBytes> {
 fn qshield(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Exceptions
     m.add("QShieldError", m.py().get_type::<PyQShieldError>())?;
-    m.add("DecapsulationError", m.py().get_type::<PyDecapsulationError>())?;
-    m.add("InvalidKeyLengthError", m.py().get_type::<PyInvalidKeyLengthError>())?;
+    m.add(
+        "DecapsulationError",
+        m.py().get_type::<PyDecapsulationError>(),
+    )?;
+    m.add(
+        "InvalidKeyLengthError",
+        m.py().get_type::<PyInvalidKeyLengthError>(),
+    )?;
     m.add("SignatureError", m.py().get_type::<PySignatureError>())?;
-    m.add("KeyDerivationError", m.py().get_type::<PyKeyDerivationError>())?;
-    m.add("UnsupportedAlgorithmError", m.py().get_type::<PyUnsupportedAlgorithmError>())?;
+    m.add(
+        "KeyDerivationError",
+        m.py().get_type::<PyKeyDerivationError>(),
+    )?;
+    m.add(
+        "UnsupportedAlgorithmError",
+        m.py().get_type::<PyUnsupportedAlgorithmError>(),
+    )?;
 
     // KEM classes
     m.add_class::<PyKemPublicKey>()?;

@@ -131,16 +131,10 @@ impl QShieldError {
     #[must_use]
     pub fn http_status(&self) -> u16 {
         match self {
-            Self::VaultLocked
-            | Self::TokenExpired
-            | Self::TokenInvalid
-            | Self::Unauthorized => 401,
+            Self::VaultLocked | Self::TokenExpired | Self::TokenInvalid | Self::Unauthorized => 401,
             Self::InsufficientScope { .. } => 403,
             Self::ItemNotFound { .. } => 404,
-            Self::Config { .. }
-            | Self::Internal { .. }
-            | Self::Database(_)
-            | Self::Io(_) => 500,
+            Self::Config { .. } | Self::Internal { .. } | Self::Database(_) | Self::Io(_) => 500,
             _ => 400,
         }
     }
@@ -149,7 +143,10 @@ impl QShieldError {
     /// or replaced with a generic "internal error" message.
     #[must_use]
     pub fn is_client_safe(&self) -> bool {
-        !matches!(self, Self::Internal { .. } | Self::Database(_) | Self::Io(_))
+        !matches!(
+            self,
+            Self::Internal { .. } | Self::Database(_) | Self::Io(_)
+        )
     }
 
     /// Build an `Internal` error from any displayable value.

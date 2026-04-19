@@ -54,8 +54,8 @@ pub fn mlock_best_effort(_ptr: *const u8, _len: usize) {}
 
 #[cfg(test)]
 mod tests {
-    use crate::{DsaKeyPair, HybridSecretKey, KemSecretKey, SharedSecret};
     use super::*;
+    use crate::{DsaKeyPair, HybridSecretKey, KemSecretKey, SharedSecret};
 
     // ── Compile-time: secret types implement ZeroizeOnDrop ────────────────
     // These expand to const assertions — they fail at *compile* time if wrong.
