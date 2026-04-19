@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "qshield-common"
 version.workspace = true
 edition.workspace = true
@@ -18,3 +18,5 @@ uuid.workspace = true
 chrono.workspace = true
 zeroize.workspace = true
 sqlx.workspace = true
+metrics = "0.24.3"
+metrics-exporter-prometheus = "0.18.1"

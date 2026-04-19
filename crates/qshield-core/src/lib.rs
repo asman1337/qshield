@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+// Note: unsafe IS permitted in qshield-core per QS-007 (FFI & perf-critical
+// crypto operations). Every unsafe block must carry a `// SAFETY:` comment.
+#![deny(clippy::all, clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod dsa;
+pub mod kem;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use dsa::{dsa_keygen, dsa_sign, dsa_verify, DsaKeyPair, DsaLevel, DsaSignature, DsaVerifyingKey};
+pub use kem::{kem_decapsulate, kem_encapsulate, kem_keygen, KemCiphertext, KemKeyPair, KemLevel, KemPublicKey, KemSecretKey, SharedSecret};

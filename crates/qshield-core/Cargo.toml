@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "qshield-core"
 version.workspace = true
 edition.workspace = true
@@ -10,13 +10,16 @@ description = "Post-quantum cryptography primitives: ML-KEM, ML-DSA, hybrid mode
 
 [dependencies]
 qshield-common.workspace = true
-rand.workspace = true
-rand_core.workspace = true
+# ml-kem and ml-dsa depend on rand_core 0.6; use that version directly here
+# so OsRng is compatible with the PQC crates' trait bounds.
+rand_core = { version = "0.6", features = ["getrandom"] }
 zeroize.workspace = true
 subtle.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+ml-kem = { version = "0.2.3", features = ["zeroize"] }
+ml-dsa = { version = "0.0.4", features = ["zeroize"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

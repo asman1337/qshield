@@ -1,0 +1,69 @@
+# syntax=docker/dockerfile:1.7
+# ──────────────────────────────────────────────────────────────────────────────
+# QShield Vault API — multi-stage Docker build (QS-006)
+# Target: linux/amd64, linux/arm64
+# Final image: debian:bookworm-slim, non-root UID 10001
+# ──────────────────────────────────────────────────────────────────────────────
+
+ARG RUST_VERSION=1.85
+
+# ── Stage 1: Build ────────────────────────────────────────────────────────────
+FROM rust:${RUST_VERSION}-bookworm AS builder
+
+WORKDIR /build
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates/qshield-common/Cargo.toml ./crates/qshield-common/
+COPY crates/qshield-core/Cargo.toml    ./crates/qshield-core/
+COPY crates/qshield-proxy/Cargo.toml   ./crates/qshield-proxy/
+COPY crates/qshield-vault-api/Cargo.toml ./crates/qshield-vault-api/
+COPY crates/qshield-auth/Cargo.toml    ./crates/qshield-auth/
+COPY bindings/python/Cargo.toml        ./bindings/python/
+COPY bindings/node/Cargo.toml          ./bindings/node/
+COPY bindings/wasm/Cargo.toml          ./bindings/wasm/
+
+RUN find crates bindings -name "Cargo.toml" | while read f; do \
+      dir=$(dirname "$f"); \
+      mkdir -p "$dir/src"; \
+      if grep -q '\[\[bin\]\]' "$f"; then \
+        echo 'fn main() {}' > "$dir/src/main.rs"; \
+      fi; \
+      echo '' > "$dir/src/lib.rs"; \
+    done
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    cargo fetch
+
+COPY crates/ ./crates/
+COPY bindings/ ./bindings/
+
+ARG CARGO_PROFILE=release
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    cargo build --profile ${CARGO_PROFILE} -p qshield-vault-api && \
+    cp target/${CARGO_PROFILE}/qshield-vault-api /usr/local/bin/qshield-vault-api
+
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 10001 qshield && \
+    useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin qshield
+
+COPY --from=builder /usr/local/bin/qshield-vault-api /usr/local/bin/qshield-vault-api
+
+USER qshield
+
+EXPOSE 3000
+EXPOSE 9090
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["/usr/local/bin/qshield-vault-api", "--health-check"] || exit 1
+
+ENTRYPOINT ["/usr/local/bin/qshield-vault-api"]
