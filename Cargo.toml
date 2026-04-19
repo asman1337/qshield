@@ -65,6 +65,9 @@ chacha20poly1305 = "0.10"
 crc32c = "0.6"
 base64 = "0.22"
 
+# Python bindings — abi3-py39 enables the stable ABI, forward-compatible with Python 3.9+
+pyo3 = { version = "0.28", features = ["extension-module", "abi3-py39"] }
+
 # HTTP client
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 

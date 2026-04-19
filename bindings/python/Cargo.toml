@@ -15,4 +15,7 @@ crate-type = ["cdylib"]
 [dependencies]
 qshield-core.workspace = true
 qshield-common.workspace = true
-# pyo3 = { version = "0.22", features = ["extension-module"] }  # uncomment in QS-109
+pyo3.workspace = true
+rand.workspace = true
+rand_core.workspace = true
+x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
