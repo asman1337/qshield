@@ -239,6 +239,42 @@ impl KemSecretKey {
     pub fn level(&self) -> KemLevel {
         self.level
     }
+
+    /// Reconstruct a decapsulation key from raw bytes.
+    ///
+    /// # Errors
+    /// Returns `InvalidKeyLength` if byte length doesn't match the level.
+    pub fn from_bytes(level: KemLevel, bytes: &[u8]) -> Result<Self, QShieldError> {
+        let expected = match level {
+            KemLevel::Kem512 => 1632,
+            KemLevel::Kem768 => 2400,
+            KemLevel::Kem1024 => 3168,
+        };
+        if bytes.len() != expected {
+            return Err(QShieldError::InvalidKeyLength { expected, actual: bytes.len() });
+        }
+        let inner = match level {
+            KemLevel::Kem512 => {
+                #[allow(deprecated)]
+                DkInner::Kem512(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem512Params>::from_bytes(
+                    ml_kem::array::Array::from_slice(bytes),
+                ))
+            }
+            KemLevel::Kem768 => {
+                #[allow(deprecated)]
+                DkInner::Kem768(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem768Params>::from_bytes(
+                    ml_kem::array::Array::from_slice(bytes),
+                ))
+            }
+            KemLevel::Kem1024 => {
+                #[allow(deprecated)]
+                DkInner::Kem1024(ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(
+                    ml_kem::array::Array::from_slice(bytes),
+                ))
+            }
+        };
+        Ok(KemSecretKey { inner: Some(inner), level })
+    }
 }
 
 impl KemCiphertext {

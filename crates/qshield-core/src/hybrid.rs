@@ -42,7 +42,7 @@ pub enum HybridMode {
 }
 
 impl HybridMode {
-    pub(crate) fn kem_level(self) -> KemLevel {
+    pub fn kem_level(self) -> KemLevel {
         match self {
             Self::X25519Kyber768 => KemLevel::Kem768,
             Self::X25519Kyber1024 => KemLevel::Kem1024,
@@ -212,6 +212,40 @@ pub(crate) fn hkdf_combine(
     // 32-byte output length is always within the HKDF-SHA-256 limit (8160 B).
     hk.expand(info, &mut okm).expect("HKDF expand: 32-byte output is always within limit");
     okm
+}
+
+// -- Key serialization helpers ---------------------------------------------
+
+impl HybridSecretKey {
+    /// Serialize to bytes: `[32 B classical key][pqc sk bytes]`.
+    ///
+    /// # Security
+    /// The returned bytes are highly sensitive — handle and erase with care.
+    #[must_use]
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let classical = self.classical.to_bytes();
+        let pqc = self.pqc.to_bytes();
+        let mut out = Vec::with_capacity(32 + pqc.len());
+        out.extend_from_slice(&classical);
+        out.extend_from_slice(&pqc);
+        out
+    }
+
+    /// Reconstruct from bytes produced by [`HybridSecretKey::to_bytes`].
+    ///
+    /// # Errors
+    /// Returns `InvalidKeyLength` if `bytes` is too short or the PQC key
+    /// length does not match `mode`.
+    pub fn from_bytes(mode: HybridMode, bytes: &[u8]) -> Result<Self, QShieldError> {
+        if bytes.len() < 32 {
+            return Err(QShieldError::InvalidKeyLength { expected: 32, actual: bytes.len() });
+        }
+        let mut classical_arr = [0u8; 32];
+        classical_arr.copy_from_slice(&bytes[..32]);
+        let classical = StaticSecret::from(classical_arr);
+        let pqc = KemSecretKey::from_bytes(mode.kem_level(), &bytes[32..])?;
+        Ok(Self { classical, pqc, mode })
+    }
 }
 
 // -- Public API -------------------------------------------------------------

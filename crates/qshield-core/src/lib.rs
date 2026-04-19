@@ -17,7 +17,7 @@ pub use aead::{
     chacha20poly1305_decrypt, chacha20poly1305_encrypt, generate_nonce, NonceCounter, NONCE_LEN,
     TAG_LEN,
 };
-pub use dsa::{dsa_keygen, dsa_sign, dsa_verify, DsaKeyPair, DsaLevel, DsaSignature, DsaVerifyingKey};
+pub use dsa::{dsa_keygen, dsa_sign, dsa_sign_bytes, dsa_verify, DsaKeyPair, DsaLevel, DsaSignature, DsaVerifyingKey};
 pub use hybrid::{
     classical_only_decapsulate, hybrid_decapsulate, hybrid_encapsulate, hybrid_keygen,
     HybridCiphertext, HybridKeyPair, HybridMode, HybridPublicKey, HybridResult, HybridSecretKey,

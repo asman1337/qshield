@@ -25,7 +25,6 @@ use aes_gcm::{
 use chacha20poly1305::{ChaCha20Poly1305, Nonce as ChaNonce};
 use rand_core::OsRng;
 use rand_core::RngCore;
-use zeroize::Zeroizing;
 
 use qshield_common::QShieldError;
 

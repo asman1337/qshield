@@ -1,0 +1,37 @@
+{
+  "name": "@qshield/core",
+  "version": "0.1.0",
+  "description": "QShield post-quantum cryptography — Node.js native addon (ML-KEM, ML-DSA, Hybrid, AEAD, HKDF)",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asman1337/qshield"
+  },
+  "engines": {
+    "node": ">= 18"
+  },
+  "napi": {
+    "name": "qshield",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-apple-darwin"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "napi build --platform --release --js index.js --dts index.d.ts",
+    "build:debug": "napi build --platform --js index.js --dts index.d.ts",
+    "test": "vitest run",
+    "prepublishOnly": "napi prepublish -t npm"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.6",
+    "vitest": "^2.0"
+  }
+}

@@ -15,5 +15,10 @@ crate-type = ["cdylib"]
 [dependencies]
 qshield-core.workspace = true
 qshield-common.workspace = true
-# napi = { version = "2", features = ["napi6"] }  # uncomment in QS-110
-# napi-derive = "2"
+napi.workspace = true
+napi-derive.workspace = true
+rand.workspace = true
+x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
+
+[build-dependencies]
+napi-build = "1"
