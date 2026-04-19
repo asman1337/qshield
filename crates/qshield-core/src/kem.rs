@@ -79,12 +79,14 @@ pub struct SharedSecret([u8; 32]);
 
 // -- Private inner enums ----------------------------------------------------
 
+#[allow(clippy::large_enum_variant)]
 enum EkInner {
     Kem512(EncapsulationKey<MlKem512Params>),
     Kem768(EncapsulationKey<MlKem768Params>),
     Kem1024(EncapsulationKey<MlKem1024Params>),
 }
 
+#[allow(clippy::large_enum_variant)]
 enum DkInner {
     Kem512(DecapsulationKey<MlKem512Params>),
     Kem768(DecapsulationKey<MlKem768Params>),
@@ -111,12 +113,12 @@ fn ss_to_arr(ss: &[u8]) -> [u8; 32] {
 
 // -- Drop / zeroize ---------------------------------------------------------
 
-// SharedSecret uses #[derive(Zeroize, ZeroizeOnDrop)] — see its definition.
+// SharedSecret uses #[derive(Zeroize, ZeroizeOnDrop)] -- see its definition.
 
 impl Zeroize for KemSecretKey {
     fn zeroize(&mut self) {
         // `Option::take` moves the inner `DecapsulationKey<P>` out and drops
-        // it here, triggering ml-kem's `ZeroizeOnDrop` — no keygen needed.
+        // it here, triggering ml-kem's `ZeroizeOnDrop` -- no keygen needed.
         drop(self.inner.take());
     }
 }
@@ -231,6 +233,9 @@ impl KemSecretKey {
     ///
     /// # Security
     /// The returned bytes are sensitive -- handle and erase with care.
+    ///
+    /// # Panics
+    /// Panics if the secret key has been zeroized.
     #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
         match self.inner.as_ref().expect("KemSecretKey already zeroized") {
@@ -342,7 +347,7 @@ impl SharedSecret {
         &self.0
     }
 
-    /// Construct from raw bytes. Crate-internal — callers must ensure bytes
+    /// Construct from raw bytes. Crate-internal -- callers must ensure bytes
     /// are already cryptographically strong and will be zeroized on drop.
     pub(crate) fn from_raw(bytes: [u8; 32]) -> Self {
         Self(bytes)
@@ -398,7 +403,7 @@ pub fn kem_encapsulate(pk: &KemPublicKey) -> Result<(SharedSecret, KemCiphertext
         EkInner::Kem512(ek) => {
             let (ct, ss) = ek
                 .encapsulate(&mut rng)
-                .map_err(|_| QShieldError::Encapsulation { algorithm: ALG_512 })?;
+                .map_err(|()| QShieldError::Encapsulation { algorithm: ALG_512 })?;
             let ct_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&ct).to_vec();
             let ss_bytes: &[u8] = AsRef::<[u8]>::as_ref(&ss);
             Ok((
@@ -412,7 +417,7 @@ pub fn kem_encapsulate(pk: &KemPublicKey) -> Result<(SharedSecret, KemCiphertext
         EkInner::Kem768(ek) => {
             let (ct, ss) = ek
                 .encapsulate(&mut rng)
-                .map_err(|_| QShieldError::Encapsulation { algorithm: ALG_768 })?;
+                .map_err(|()| QShieldError::Encapsulation { algorithm: ALG_768 })?;
             let ct_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&ct).to_vec();
             let ss_bytes: &[u8] = AsRef::<[u8]>::as_ref(&ss);
             Ok((
@@ -426,7 +431,7 @@ pub fn kem_encapsulate(pk: &KemPublicKey) -> Result<(SharedSecret, KemCiphertext
         EkInner::Kem1024(ek) => {
             let (ct, ss) = ek
                 .encapsulate(&mut rng)
-                .map_err(|_| QShieldError::Encapsulation {
+                .map_err(|()| QShieldError::Encapsulation {
                     algorithm: ALG_1024,
                 })?;
             let ct_bytes: Vec<u8> = AsRef::<[u8]>::as_ref(&ct).to_vec();
@@ -447,6 +452,9 @@ pub fn kem_encapsulate(pk: &KemPublicKey) -> Result<(SharedSecret, KemCiphertext
 /// # Errors
 /// Returns `Decapsulation` if the level of `sk` and `ct` do not match, or on
 /// internal failure.
+///
+/// # Panics
+/// Panics if `sk` has been zeroized.
 pub fn kem_decapsulate(
     sk: &KemSecretKey,
     ct: &KemCiphertext,
@@ -462,7 +470,7 @@ pub fn kem_decapsulate(
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);
             let ss = dk
                 .decapsulate(ct_arr)
-                .map_err(|_| QShieldError::Decapsulation { algorithm: ALG_512 })?;
+                .map_err(|()| QShieldError::Decapsulation { algorithm: ALG_512 })?;
             Ok(SharedSecret(ss_to_arr(ss.as_ref())))
         }
         DkInner::Kem768(dk) => {
@@ -470,7 +478,7 @@ pub fn kem_decapsulate(
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);
             let ss = dk
                 .decapsulate(ct_arr)
-                .map_err(|_| QShieldError::Decapsulation { algorithm: ALG_768 })?;
+                .map_err(|()| QShieldError::Decapsulation { algorithm: ALG_768 })?;
             Ok(SharedSecret(ss_to_arr(ss.as_ref())))
         }
         DkInner::Kem1024(dk) => {
@@ -478,7 +486,7 @@ pub fn kem_decapsulate(
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);
             let ss = dk
                 .decapsulate(ct_arr)
-                .map_err(|_| QShieldError::Decapsulation {
+                .map_err(|()| QShieldError::Decapsulation {
                     algorithm: ALG_1024,
                 })?;
             Ok(SharedSecret(ss_to_arr(ss.as_ref())))

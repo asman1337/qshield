@@ -1,4 +1,4 @@
-//! Hybrid Signatures (Ed25519 + ML-DSA-65) — QS-104.
+//! Hybrid Signatures (Ed25519 + ML-DSA-65) -- QS-104.
 //!
 //! Combines a classical Ed25519 signature with a PQC ML-DSA-65 signature so the
 //! composite is secure if *either* algorithm holds.
@@ -24,7 +24,7 @@ use crate::dsa::{
     DsaKeyPair, DsaLevel, DsaSignature, DsaVerifyingKey, dsa_keygen, dsa_sign, dsa_verify,
 };
 
-// ── Mode enum ──────────────────────────────────────────────────────────────
+// -- Mode enum --------------------------------------------------------------
 
 /// Supported hybrid signature combinations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,7 +33,7 @@ pub enum HybridSigMode {
     Ed25519Dilithium65,
 }
 
-// ── Public types ───────────────────────────────────────────────────────────
+// -- Public types -----------------------------------------------------------
 
 /// Hybrid signing key (Ed25519 + ML-DSA-65). Zeroized on drop.
 pub struct HybridSigningKey {
@@ -58,7 +58,7 @@ pub struct HybridSignature {
     bytes: Vec<u8>,
 }
 
-// ── Zeroize ────────────────────────────────────────────────────────────────
+// -- Zeroize ----------------------------------------------------------------
 
 impl Zeroize for HybridSigningKey {
     fn zeroize(&mut self) {
@@ -76,7 +76,7 @@ impl Drop for HybridSigningKey {
 
 impl ZeroizeOnDrop for HybridSigningKey {}
 
-// ── Debug (no key material) ────────────────────────────────────────────────
+// -- Debug (no key material) ------------------------------------------------
 
 impl fmt::Debug for HybridSigningKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -96,7 +96,7 @@ impl fmt::Debug for HybridSignature {
     }
 }
 
-// ── Accessors ──────────────────────────────────────────────────────────────
+// -- Accessors --------------------------------------------------------------
 
 impl HybridSigningKey {
     #[must_use]
@@ -105,6 +105,9 @@ impl HybridSigningKey {
     }
 
     /// Derive the hybrid verifying key.
+    ///
+    /// # Panics
+    /// Panics if the signing key has been zeroized.
     #[must_use]
     pub fn verifying_key(&self) -> HybridVerifyingKey {
         let ed = self
@@ -146,7 +149,7 @@ impl HybridSignature {
     }
 }
 
-// ── Wire-format helpers ────────────────────────────────────────────────────
+// -- Wire-format helpers ----------------------------------------------------
 
 /// Encode classical and PQC sub-signatures into the hybrid wire format.
 fn sig_encode(classical: &[u8], pqc: &[u8]) -> Result<Vec<u8>, QShieldError> {
@@ -186,7 +189,7 @@ fn sig_parse(bytes: &[u8]) -> Result<(&[u8], &[u8]), QShieldError> {
     Ok((after_c, pqc))
 }
 
-// ── Core API ───────────────────────────────────────────────────────────────
+// -- Core API ---------------------------------------------------------------
 
 /// Generate a new hybrid signing key pair.
 ///
@@ -203,6 +206,9 @@ pub fn hybrid_sig_keygen(mode: HybridSigMode) -> Result<HybridSigningKey, QShiel
 ///
 /// # Errors
 /// Returns `SignatureCreation` if ML-DSA signing fails.
+///
+/// # Panics
+/// Panics if `sk` has been zeroized.
 pub fn hybrid_sign(sk: &HybridSigningKey, msg: &[u8]) -> Result<HybridSignature, QShieldError> {
     let ed = sk
         .ed25519
@@ -228,7 +234,7 @@ pub fn hybrid_verify(
 ) -> Result<bool, QShieldError> {
     let (classical_bytes, pqc_bytes) = sig_parse(&sig.bytes)?;
 
-    // ── Ed25519 ──
+    // -- Ed25519 --
     let ed_vk = Ed25519VerifyingKey::from_bytes(&pk.ed25519_vk_bytes).map_err(|_| {
         QShieldError::SignatureVerification {
             algorithm: "Ed25519 (invalid public key bytes)",
@@ -245,7 +251,7 @@ pub fn hybrid_verify(
         return Ok(false);
     }
 
-    // ── ML-DSA-65 ──
+    // -- ML-DSA-65 --
     let pqc_sig = DsaSignature::from_raw(pqc_bytes.to_vec(), DsaLevel::Dsa65);
     let pqc_ok = dsa_verify(&pk.pqc, msg, &pqc_sig)?;
     Ok(pqc_ok)
@@ -263,7 +269,7 @@ pub fn extract_classical_sig(sig: &HybridSignature) -> Result<Vec<u8>, QShieldEr
     Ok(classical_bytes.to_vec())
 }
 
-// ── Serde (QS-113) ────────────────────────────────────────────────────────
+// -- Serde (QS-113) --------------------------------------------------------
 //
 // HybridSignature serializes as a base64-encoded QSKE envelope.
 // HybridVerifyingKey serializes as a JSON object with "ed25519" and "pqc" fields.
@@ -302,7 +308,7 @@ impl<'de> Deserialize<'de> for HybridSignature {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// -- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -318,7 +324,7 @@ mod tests {
         (sk, vk, sig)
     }
 
-    // ── Round-trip ────────────────────────────────────────────────────────
+    // -- Round-trip --------------------------------------------------------
 
     #[test]
     fn round_trip_ed25519_dilithium65() {
@@ -326,7 +332,7 @@ mod tests {
         assert!(hybrid_verify(&vk, MSG, &sig).unwrap());
     }
 
-    // ── Tamper tests ──────────────────────────────────────────────────────
+    // -- Tamper tests ------------------------------------------------------
 
     #[test]
     fn tampered_classical_sig_fails() {
@@ -358,7 +364,7 @@ mod tests {
         assert!(!hybrid_verify(&vk, ALT_MSG, &sig).unwrap());
     }
 
-    // ── Classical extraction ──────────────────────────────────────────────
+    // -- Classical extraction ----------------------------------------------
 
     #[test]
     fn classical_extraction_is_valid_ed25519() {
@@ -381,7 +387,7 @@ mod tests {
         );
     }
 
-    // ── Sub-signature independence ────────────────────────────────────────
+    // -- Sub-signature independence ----------------------------------------
 
     #[test]
     fn sub_signatures_are_independently_valid() {
@@ -400,7 +406,7 @@ mod tests {
         assert!(dsa_verify(&vk.pqc, MSG, &pqc_sig).unwrap());
     }
 
-    // ── Wire format ───────────────────────────────────────────────────────
+    // -- Wire format -------------------------------------------------------
 
     #[test]
     fn from_bytes_round_trip() {

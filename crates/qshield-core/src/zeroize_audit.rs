@@ -1,19 +1,19 @@
-//! QS-114 — Key zeroization audit: compile-time guarantees and tests.
+//! QS-114 -- Key zeroization audit: compile-time guarantees and tests.
 //!
 //! # What this module enforces
 //!
-//! 1. **No `Clone` on secret types** — `static_assertions::assert_not_impl_any!`
+//! 1. **No `Clone` on secret types** -- `static_assertions::assert_not_impl_any!`
 //!    prevents accidental `Clone` derivation from ever compiling.
 //!
-//! 2. **`ZeroizeOnDrop` on all secret types** — confirmed at compile time via
+//! 2. **`ZeroizeOnDrop` on all secret types** -- confirmed at compile time via
 //!    `static_assertions::assert_impl_all!`.
 //!
-//! 3. **`mlock` utility** — best-effort page-locking on Linux; no-op elsewhere.
+//! 3. **`mlock` utility** -- best-effort page-locking on Linux; no-op elsewhere.
 //!
-//! 4. **Manual memory inspection test** — marked `#[ignore]`, run manually to
+//! 4. **Manual memory inspection test** -- marked `#[ignore]`, run manually to
 //!    spot-check that `SharedSecret` bytes are wiped on drop.
 
-// ── mlock: best-effort page-locking ───────────────────────────────────────
+// -- mlock: best-effort page-locking ---------------------------------------
 
 /// Attempt to lock `len` bytes at `ptr` in physical RAM (Linux only).
 ///
@@ -21,7 +21,7 @@
 /// logged at DEBUG level. No-op on Windows and macOS.
 ///
 /// # Safety of the implementation
-/// `mlock(2)` only reads the page boundaries around `ptr` — it does not
+/// `mlock(2)` only reads the page boundaries around `ptr` -- it does not
 /// dereference `ptr` itself. The call is safe even if `ptr` points to a
 /// non-readable page (it will simply fail with `ENOMEM`).
 #[cfg(target_os = "linux")]
@@ -50,21 +50,21 @@ pub fn mlock_best_effort(ptr: *const u8, len: usize) {
 #[cfg(not(target_os = "linux"))]
 pub fn mlock_best_effort(_ptr: *const u8, _len: usize) {}
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// -- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{DsaKeyPair, HybridSecretKey, KemSecretKey, SharedSecret};
 
-    // ── Compile-time: secret types implement ZeroizeOnDrop ────────────────
-    // These expand to const assertions — they fail at *compile* time if wrong.
+    // -- Compile-time: secret types implement ZeroizeOnDrop ----------------
+    // These expand to const assertions -- they fail at *compile* time if wrong.
     static_assertions::assert_impl_all!(SharedSecret: zeroize::ZeroizeOnDrop);
     static_assertions::assert_impl_all!(KemSecretKey: zeroize::ZeroizeOnDrop);
     static_assertions::assert_impl_all!(DsaKeyPair: zeroize::ZeroizeOnDrop);
     static_assertions::assert_impl_all!(HybridSecretKey: zeroize::ZeroizeOnDrop);
 
-    // ── Compile-time: secret types do NOT implement Clone ─────────────────
+    // -- Compile-time: secret types do NOT implement Clone -----------------
     // If any of these types accidentally derive Clone, `cargo test` fails to compile.
     static_assertions::assert_not_impl_any!(SharedSecret: Clone);
     static_assertions::assert_not_impl_any!(KemSecretKey: Clone);
@@ -84,22 +84,22 @@ mod tests {
         // Uncommenting the following lines MUST produce a compile error:
         //   let kp = crate::kem_keygen(crate::KemLevel::Kem768).unwrap();
         //   let _ = kp.secret_key.clone();   // error[E0277]: Clone not satisfied
-        //   let _ = kp.secret_key.level.clone();  // KemLevel IS Clone — fine
+        //   let _ = kp.secret_key.level.clone();  // KemLevel IS Clone -- fine
     }
 
     /// Verify that `SharedSecret` bytes are zeroed after drop.
     ///
-    /// Reads memory after drop — technically undefined behaviour in Rust.
+    /// Reads memory after drop -- technically undefined behaviour in Rust.
     /// Run manually only: `cargo test -- --ignored zeroize_after_drop`
     #[test]
-    #[ignore = "reads memory after drop (UB) — run manually to spot-check only"]
+    #[ignore = "reads memory after drop (UB) -- run manually to spot-check only"]
     fn zeroize_after_drop() {
         let secret = crate::kem::SharedSecret::from_raw([0xABu8; 32]);
         let ptr: *const u8 = secret.as_bytes().as_ptr();
         drop(secret);
 
         // SAFETY: we just owned this memory; zeroize should have wiped it.
-        // This is UB per the Rust abstract machine — manual inspection only.
+        // This is UB per the Rust abstract machine -- manual inspection only.
         let bytes: [u8; 32] = unsafe { ptr.cast::<[u8; 32]>().read() };
         assert_eq!(bytes, [0u8; 32], "SharedSecret was not zeroed on drop");
     }

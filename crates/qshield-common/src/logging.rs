@@ -33,7 +33,7 @@ pub fn init() {
     }
 }
 
-/// Initialise logging for tests — uses compact human-readable format.
+/// Initialise logging for tests -- uses compact human-readable format.
 /// Safe to call multiple times (subsequent calls are no-ops).
 pub fn init_test() {
     let _ = tracing_subscriber::fmt()

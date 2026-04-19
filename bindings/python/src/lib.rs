@@ -1,4 +1,4 @@
-// QShield Python bindings (QS-109) — PyO3 + maturin
+// QShield Python bindings (QS-109) -- PyO3 + maturin
 //
 // Exposes qshield-core's KEM, DSA, hybrid KEM, AEAD, and KDF functionality
 // to Python as a native extension module named `qshield`.
@@ -23,7 +23,7 @@ use qshield_core::{
 };
 use rand::RngCore;
 
-// ── Python exception hierarchy ─────────────────────────────────────────────
+// -- Python exception hierarchy ---------------------------------------------
 
 create_exception!(
     qshield,
@@ -82,7 +82,7 @@ fn to_py_err(e: QShieldError) -> PyErr {
     }
 }
 
-// ── Parsing helpers ────────────────────────────────────────────────────────
+// -- Parsing helpers --------------------------------------------------------
 
 fn parse_kem_level(level: &str) -> PyResult<KemLevel> {
     match level {
@@ -132,7 +132,7 @@ fn dsa_level_str(level: DsaLevel) -> &'static str {
     }
 }
 
-// ── KEM Python classes ─────────────────────────────────────────────────────
+// -- KEM Python classes -----------------------------------------------------
 
 /// ML-KEM encapsulation (public) key.
 #[pyclass(name = "KemPublicKey", module = "qshield")]
@@ -171,7 +171,7 @@ struct PyKemSecretKey {
 #[pymethods]
 impl PyKemSecretKey {
     /// Returns the raw bytes of this secret key.
-    /// **Handle with care** — store encrypted at rest.
+    /// **Handle with care** -- store encrypted at rest.
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.inner.to_bytes())
     }
@@ -242,7 +242,7 @@ impl PyKemKeypair {
     }
 }
 
-// ── DSA Python classes ─────────────────────────────────────────────────────
+// -- DSA Python classes -----------------------------------------------------
 
 /// ML-DSA verifying (public) key.
 #[pyclass(name = "DsaVerifyingKey", module = "qshield")]
@@ -328,7 +328,7 @@ impl PyDsaKeypair {
     }
 }
 
-// ── Hybrid KEM Python classes ──────────────────────────────────────────────
+// -- Hybrid KEM Python classes ----------------------------------------------
 
 /// Hybrid (X25519 + ML-KEM) public key. Stored as serialized bytes internally
 /// to avoid PyO3 Send constraints on the underlying x25519 type.
@@ -457,12 +457,12 @@ impl PyHybridKeypair {
     }
 }
 
-// ── KEM functions ──────────────────────────────────────────────────────────
+// -- KEM functions ----------------------------------------------------------
 
 /// Generate an ML-KEM key pair.
 ///
 /// Args:
-///     level: Security level — "512", "768" (default), or "1024".
+///     level: Security level -- "512", "768" (default), or "1024".
 ///
 /// Returns:
 ///     KemKeypair with `.public_key` and `.secret_key` attributes.
@@ -518,12 +518,12 @@ fn kem_decapsulate<'py>(
     Ok(PyBytes::new(py, ss.as_bytes()))
 }
 
-// ── DSA functions ──────────────────────────────────────────────────────────
+// -- DSA functions ----------------------------------------------------------
 
 /// Generate an ML-DSA key pair.
 ///
 /// Args:
-///     level: Security level — "44", "65" (default), or "87".
+///     level: Security level -- "44", "65" (default), or "87".
 ///
 /// Returns:
 ///     DsaKeypair with `.verifying_key` and `.level` attributes.
@@ -572,7 +572,7 @@ fn dsa_verify(
     Ok(valid)
 }
 
-// ── Hybrid KEM functions ───────────────────────────────────────────────────
+// -- Hybrid KEM functions ---------------------------------------------------
 
 /// Generate a hybrid X25519 + ML-KEM key pair.
 ///
@@ -642,7 +642,7 @@ fn hybrid_decapsulate<'py>(
     Ok(PyBytes::new(py, result.shared_secret.as_bytes()))
 }
 
-// ── AEAD functions ─────────────────────────────────────────────────────────
+// -- AEAD functions ---------------------------------------------------------
 
 /// Encrypt with AES-256-GCM.
 ///
@@ -767,7 +767,7 @@ fn chacha20poly1305_decrypt<'py>(
     Ok(PyBytes::new(py, &pt))
 }
 
-// ── KDF functions ──────────────────────────────────────────────────────────
+// -- KDF functions ----------------------------------------------------------
 
 /// Derive a key using HKDF-SHA3-256.
 ///
@@ -775,7 +775,7 @@ fn chacha20poly1305_decrypt<'py>(
 ///     ikm: Input key material.
 ///     salt: Optional salt bytes (pass b"" for no salt).
 ///     info: Context/application-specific info string.
-///     length: Output length in bytes (1–8160).
+///     length: Output length in bytes (1-8160).
 ///
 /// Returns:
 ///     Derived key bytes.
@@ -792,7 +792,7 @@ fn hkdf_sha3_256<'py>(
     Ok(PyBytes::new(py, &okm))
 }
 
-// ── Utility functions ──────────────────────────────────────────────────────
+// -- Utility functions ------------------------------------------------------
 
 /// Return `n` cryptographically random bytes (from the OS CSPRNG).
 #[pyfunction]
@@ -802,9 +802,9 @@ fn random_bytes<'py>(py: Python<'py>, n: usize) -> Bound<'py, PyBytes> {
     PyBytes::new(py, &buf)
 }
 
-// ── Module registration ────────────────────────────────────────────────────
+// -- Module registration ----------------------------------------------------
 
-/// QShield — post-quantum cryptography for Python.
+/// QShield -- post-quantum cryptography for Python.
 ///
 /// Provides ML-KEM, ML-DSA, hybrid X25519+Kyber, AES-256-GCM,
 /// ChaCha20-Poly1305, and HKDF-SHA3-256 via a Rust native extension.

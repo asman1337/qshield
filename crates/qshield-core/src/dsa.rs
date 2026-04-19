@@ -1,4 +1,4 @@
-//! ML-DSA (FIPS 204) digital signatures — QS-102.
+//! ML-DSA (FIPS 204) digital signatures -- QS-102.
 //!
 //! Wraps the `ml-dsa` RustCrypto crate. Uses hedged (randomized) signing by
 //! default to protect against fault attacks. A deterministic variant is
@@ -15,22 +15,22 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use qshield_common::QShieldError;
 
-// ── Algorithm names ────────────────────────────────────────────────────────
+// -- Algorithm names --------------------------------------------------------
 
 const ALG_44: &str = "ML-DSA-44";
 const ALG_65: &str = "ML-DSA-65";
 const ALG_87: &str = "ML-DSA-87";
 
-// ── Public types ───────────────────────────────────────────────────────────
+// -- Public types -----------------------------------------------------------
 
 /// Which ML-DSA parameter set to use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DsaLevel {
-    /// NIST security level 2 — general use.
+    /// NIST security level 2 -- general use.
     Dsa44,
-    /// NIST security level 3 — QShield default.
+    /// NIST security level 3 -- QShield default.
     Dsa65,
-    /// NIST security level 5 — high-security environments.
+    /// NIST security level 5 -- high-security environments.
     Dsa87,
 }
 
@@ -66,20 +66,21 @@ pub struct DsaSignature {
     level: DsaLevel,
 }
 
-// ── Private inner enums ────────────────────────────────────────────────────
+// -- Private inner enums ----------------------------------------------------
 
+#[allow(clippy::large_enum_variant)]
 enum KpInner {
     Dsa44(KeyPair<MlDsa44>),
     Dsa65(KeyPair<MlDsa65>),
     Dsa87(KeyPair<MlDsa87>),
 }
 
-// ── Drop / zeroize ──────────────────────────────────────────────────────────────────────────
+// -- Drop / zeroize --------------------------------------------------------------------------
 
 impl Zeroize for DsaKeyPair {
     fn zeroize(&mut self) {
         // `Option::take` moves the inner `KeyPair<P>` out and drops it here,
-        // triggering `SigningKey<P>`'s `ZeroizeOnDrop` — no keygen needed.
+        // triggering `SigningKey<P>`'s `ZeroizeOnDrop` -- no keygen needed.
         drop(self.inner.take());
     }
 }
@@ -92,7 +93,7 @@ impl Drop for DsaKeyPair {
 
 impl ZeroizeOnDrop for DsaKeyPair {}
 
-// ── Debug impls (security: never print key material) ──────────────────────
+// -- Debug impls (security: never print key material) ----------------------
 
 impl fmt::Debug for DsaKeyPair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -122,7 +123,7 @@ impl fmt::Debug for DsaSignature {
     }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// -- Helpers ----------------------------------------------------------------
 
 fn vk_to_bytes<P: MlDsaParams>(vk: &VerifyingKey<P>) -> Vec<u8> {
     // `encode()` returns `hybrid_array::Array<u8, N>`; use AsRef<[u8]> via slice index.
@@ -145,10 +146,13 @@ fn sig_from_bytes<P: MlDsaParams>(bytes: &[u8]) -> Option<Signature<P>> {
     Signature::<P>::decode(&enc)
 }
 
-// ── Key pair accessors ─────────────────────────────────────────────────────
+// -- Key pair accessors -----------------------------------------------------
 
 impl DsaKeyPair {
     /// Extract the verifying (public) key, serialized to bytes.
+    ///
+    /// # Panics
+    /// Panics if the key pair has been zeroized.
     #[must_use]
     pub fn verifying_key(&self) -> DsaVerifyingKey {
         let bytes = match self.inner.as_ref().expect("DsaKeyPair already zeroized") {
@@ -170,7 +174,10 @@ impl DsaKeyPair {
     /// Encode the signing (secret) key as raw bytes.
     ///
     /// # Security
-    /// The returned bytes are highly sensitive — handle and erase with care.
+    /// The returned bytes are highly sensitive -- handle and erase with care.
+    ///
+    /// # Panics
+    /// Panics if the key pair has been zeroized.
     #[must_use]
     pub fn signing_key_bytes(&self) -> Vec<u8> {
         match self.inner.as_ref().expect("DsaKeyPair already zeroized") {
@@ -207,6 +214,7 @@ impl DsaVerifyingKey {
     /// The caller is responsible for ensuring `bytes` is a valid verifying key
     /// for the given `level`. Used by FFI bindings to reconstruct keys from
     /// bytes-based storage.
+    #[must_use]
     pub fn from_raw(bytes: Vec<u8>, level: DsaLevel) -> Self {
         Self { bytes, level }
     }
@@ -229,12 +237,13 @@ impl DsaSignature {
     /// The caller is responsible for ensuring `bytes` is a valid signature
     /// for the given `level`. Used by FFI bindings to reconstruct signatures
     /// from bytes-based storage.
+    #[must_use]
     pub fn from_raw(bytes: Vec<u8>, level: DsaLevel) -> Self {
         Self { bytes, level }
     }
 }
 
-// ── Core API ───────────────────────────────────────────────────────────────
+// -- Core API ---------------------------------------------------------------
 
 /// Generate a new ML-DSA key pair for the given security level.
 ///
@@ -262,6 +271,9 @@ pub fn dsa_keygen(level: DsaLevel) -> Result<DsaKeyPair, QShieldError> {
 ///
 /// # Errors
 /// Returns `SignatureCreation` on internal failure.
+///
+/// # Panics
+/// Panics if the key pair has been zeroized.
 pub fn dsa_sign(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShieldError> {
     let mut rng = OsRng;
     let (bytes, level) = match kp.inner.as_ref().expect("DsaKeyPair already zeroized") {
@@ -294,6 +306,9 @@ pub fn dsa_sign(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShield
 ///
 /// # Errors
 /// Returns `SignatureCreation` on internal failure.
+///
+/// # Panics
+/// Panics if the key pair has been zeroized.
 pub fn dsa_sign_deterministic(
     kp: &DsaKeyPair,
     message: &[u8],
@@ -327,7 +342,7 @@ pub fn dsa_sign_deterministic(
 /// Verify a signature.
 ///
 /// Returns `Ok(true)` for a valid signature, `Ok(false)` for an invalid one.
-/// Never panics on malformed inputs — returns `Ok(false)` for structurally
+/// Never panics on malformed inputs -- returns `Ok(false)` for structurally
 /// bad signatures, `Err` only for level mismatches.
 ///
 /// # Errors
@@ -373,7 +388,7 @@ pub fn dsa_verify(
     }
 }
 
-// ── Serde (QS-113) ────────────────────────────────────────────────────────
+// -- Serde (QS-113) --------------------------------------------------------
 //
 // DsaVerifyingKey and DsaSignature serialize as base64-encoded QSKE envelopes.
 
@@ -381,7 +396,7 @@ use crate::wire::{AlgorithmCode, KeyType, QskeEnvelope};
 use base64::Engine as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-// ── FFI helper ─────────────────────────────────────────────────────────────
+// -- FFI helper -------------------------------------------------------------
 
 /// Sign `message` with raw signing-key bytes (for FFI/binding use cases where
 /// the key is stored externally as bytes rather than as a [`DsaKeyPair`]).
@@ -519,7 +534,7 @@ impl<'de> Deserialize<'de> for DsaSignature {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// -- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

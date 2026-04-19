@@ -1,3 +1,3 @@
 fn main() {
-    println!("QShield service starting — not yet implemented");
+    println!("QShield service starting -- not yet implemented");
 }

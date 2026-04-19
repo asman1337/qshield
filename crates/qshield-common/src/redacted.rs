@@ -15,7 +15,10 @@ impl<T: zeroize::Zeroize> Redacted<T> {
         Self { inner: Some(value) }
     }
 
-    /// Access the inner value. Panics if `into_inner` was already called.
+    /// Access the inner value.
+    ///
+    /// # Panics
+    /// Panics if [`into_inner`](Self::into_inner) was already called.
     pub fn expose(&self) -> &T {
         self.inner
             .as_ref()
@@ -23,6 +26,9 @@ impl<T: zeroize::Zeroize> Redacted<T> {
     }
 
     /// Consume and return the inner value (caller owns it, not zeroized).
+    ///
+    /// # Panics
+    /// Panics if called more than once.
     pub fn into_inner(mut self) -> T {
         self.inner.take().expect("Redacted value already consumed")
     }

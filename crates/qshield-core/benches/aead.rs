@@ -24,7 +24,7 @@ const SIZES: [(usize, &str); 4] = [
     (100 * 1_024 * 1_024, "100MB"),
 ];
 
-// ── AES-256-GCM ──────────────────────────────────────────────────────────────
+// -- AES-256-GCM --------------------------------------------------------------
 
 fn bench_aes256gcm_encrypt(c: &mut Criterion) {
     let mut g = c.benchmark_group("aes256gcm_encrypt");
@@ -67,7 +67,7 @@ fn bench_aes256gcm_decrypt(c: &mut Criterion) {
     g.finish();
 }
 
-// ── ChaCha20-Poly1305 ─────────────────────────────────────────────────────────
+// -- ChaCha20-Poly1305 ---------------------------------------------------------
 
 fn bench_chacha20_encrypt(c: &mut Criterion) {
     let mut g = c.benchmark_group("chacha20poly1305_encrypt");

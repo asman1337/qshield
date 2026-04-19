@@ -40,7 +40,7 @@ fn bench_dsa_sign(c: &mut Criterion) {
     ] {
         let kp = dsa_keygen(level).unwrap();
         g.bench_function(label, |b| {
-            // hedged signing draws from OsRng each call — realistic cost.
+            // hedged signing draws from OsRng each call -- realistic cost.
             b.iter(|| dsa_sign(black_box(&kp), black_box(MESSAGE)).unwrap())
         });
     }

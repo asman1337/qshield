@@ -1,4 +1,4 @@
-//! Symmetric AEAD primitives — QS-108.
+//! Symmetric AEAD primitives -- QS-108.
 //!
 //! Provides AES-256-GCM and ChaCha20-Poly1305 with a consistent API.
 //! Both ciphers are quantum-safe at 256-bit key strength (Grover's algorithm
@@ -33,7 +33,7 @@ pub const NONCE_LEN: usize = 12;
 /// Authentication tag length for both ciphers (128 bits).
 pub const TAG_LEN: usize = 16;
 
-// ── Nonce generation ────────────────────────────────────────────────────────
+// -- Nonce generation --------------------------------------------------------
 
 /// Generate a random 96-bit nonce from the OS CSPRNG.
 ///
@@ -70,7 +70,7 @@ impl NonceCounter {
     ///
     /// # Panics
     /// Panics on counter overflow (after 2^64 - 1 nonces).
-    pub fn next(&mut self) -> [u8; NONCE_LEN] {
+    pub fn advance(&mut self) -> [u8; NONCE_LEN] {
         let c = self.counter.checked_add(1).expect("NonceCounter overflow");
         self.counter = c;
         let mut nonce = [0u8; NONCE_LEN];
@@ -80,7 +80,7 @@ impl NonceCounter {
     }
 }
 
-// ── AES-256-GCM ─────────────────────────────────────────────────────────────
+// -- AES-256-GCM -------------------------------------------------------------
 
 /// Encrypt `plaintext` with AES-256-GCM.
 ///
@@ -114,7 +114,7 @@ pub fn aes256gcm_encrypt(
 /// Decrypt `ciphertext_with_tag` (ciphertext || 16-byte tag) with AES-256-GCM.
 ///
 /// Returns the plaintext. The returned `Vec` is **not** wrapped in `Zeroizing`
-/// — callers handling sensitive plaintext should wrap it themselves.
+/// -- callers handling sensitive plaintext should wrap it themselves.
 ///
 /// # Errors
 /// - `DecryptionFailed` if authentication fails (tag mismatch, wrong key, tampered AAD).
@@ -137,7 +137,7 @@ pub fn aes256gcm_decrypt(
         .map_err(|_| QShieldError::DecryptionFailed)
 }
 
-// ── ChaCha20-Poly1305 ────────────────────────────────────────────────────────
+// -- ChaCha20-Poly1305 --------------------------------------------------------
 
 /// Encrypt `plaintext` with ChaCha20-Poly1305 (RFC 8439).
 ///
@@ -190,7 +190,10 @@ pub fn chacha20poly1305_decrypt(
         .map_err(|_| QShieldError::DecryptionFailed)
 }
 
-// ── Streaming AEAD ───────────────────────────────────────────────────────────
+// -- Streaming AEAD -----------------------------------------------------------
+
+/// A single encrypted chunk: `(nonce, ciphertext_with_tag)`.
+pub type StreamChunk = ([u8; NONCE_LEN], Vec<u8>);
 
 /// Encrypt a large payload in fixed-size chunks using AES-256-GCM.
 ///
@@ -200,7 +203,7 @@ pub fn chacha20poly1305_decrypt(
 ///
 /// `chunk_size` must be > 0. The last chunk may be smaller.
 ///
-/// Returns a `Vec` of `(nonce, ciphertext_with_tag)` pairs — one per chunk.
+/// Returns a `Vec` of `(nonce, ciphertext_with_tag)` pairs -- one per chunk.
 ///
 /// # Errors
 /// - `KeyDerivation` if `chunk_size == 0`.
@@ -211,7 +214,7 @@ pub fn aes256gcm_encrypt_streaming(
     plaintext: &[u8],
     aad: &[u8],
     chunk_size: usize,
-) -> Result<Vec<([u8; NONCE_LEN], Vec<u8>)>, QShieldError> {
+) -> Result<Vec<StreamChunk>, QShieldError> {
     if chunk_size == 0 {
         return Err(QShieldError::KeyDerivation {
             reason: "chunk_size must be > 0",
@@ -224,7 +227,7 @@ pub fn aes256gcm_encrypt_streaming(
     plaintext
         .chunks(chunk_size)
         .map(|chunk| {
-            let nonce = counter.next();
+            let nonce = counter.advance();
             let ct = aes256gcm_encrypt(key, &nonce, chunk, aad)?;
             Ok((nonce, ct))
         })
@@ -239,7 +242,7 @@ pub fn aes256gcm_encrypt_streaming(
 /// - `DecryptionFailed` on any authentication failure.
 pub fn aes256gcm_decrypt_streaming(
     key: &[u8; 32],
-    chunks: &[([u8; NONCE_LEN], Vec<u8>)],
+    chunks: &[StreamChunk],
     aad: &[u8],
 ) -> Result<Vec<u8>, QShieldError> {
     let mut plaintext = Vec::new();
@@ -250,13 +253,13 @@ pub fn aes256gcm_decrypt_streaming(
     Ok(plaintext)
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
+// -- Tests --------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // -- Helpers --------------------------------------------------------------
 
     fn random_key() -> [u8; 32] {
         let mut k = [0u8; 32];
@@ -264,7 +267,7 @@ mod tests {
         k
     }
 
-    // ── AES-256-GCM ──────────────────────────────────────────────────────────
+    // -- AES-256-GCM ----------------------------------------------------------
 
     #[test]
     fn aes256gcm_round_trip() {
@@ -330,7 +333,7 @@ mod tests {
         );
     }
 
-    // ── ChaCha20-Poly1305 ────────────────────────────────────────────────────
+    // -- ChaCha20-Poly1305 ----------------------------------------------------
 
     #[test]
     fn chacha20poly1305_round_trip() {
@@ -369,8 +372,8 @@ mod tests {
         ));
     }
 
-    // Verify our output matches a known value by checking encrypt→decrypt
-    // and that ciphertext ≠ plaintext. Full RFC 8439 Appendix A.5 vector to
+    // Verify our output matches a known value by checking encrypt->decrypt
+    // and that ciphertext != plaintext. Full RFC 8439 Appendix A.5 vector to
     // be added once an authoritative hex source is confirmed.
     #[test]
     fn chacha20poly1305_cipher_differs_from_plaintext() {
@@ -395,7 +398,7 @@ mod tests {
         assert_eq!(decrypted.as_slice(), pt.as_slice());
     }
 
-    // ── Streaming ────────────────────────────────────────────────────────────
+    // -- Streaming ------------------------------------------------------------
 
     #[test]
     fn streaming_round_trip() {
@@ -432,8 +435,8 @@ mod tests {
     #[test]
     fn nonce_counter_increments() {
         let mut counter = NonceCounter::new([0xDE, 0xAD, 0xBE, 0xEF]);
-        let n1 = counter.next();
-        let n2 = counter.next();
+        let n1 = counter.advance();
+        let n2 = counter.advance();
         assert_ne!(n1, n2, "nonces must be unique");
         assert_eq!(&n1[..4], &[0xDE, 0xAD, 0xBE, 0xEF]);
         // counter starts at 1 (checked_add before storing)

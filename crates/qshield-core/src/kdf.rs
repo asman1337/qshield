@@ -1,4 +1,4 @@
-//! Key Derivation Functions — QS-107.
+//! Key Derivation Functions -- QS-107.
 //!
 //! # Functions
 //!
@@ -9,7 +9,7 @@
 //! | [`derive_key_256`] | SHA3-256 | Convenience: always 32 bytes |
 //!
 //! All output buffers are wrapped in [`Zeroizing`] so they are wiped when
-//! dropped. The input key material is **not** copied — callers are responsible
+//! dropped. The input key material is **not** copied -- callers are responsible
 //! for zeroizing `ikm` themselves.
 
 use hkdf::Hkdf;
@@ -49,7 +49,7 @@ pub fn hkdf_sha256(
 
 /// HKDF-SHA3-256.
 ///
-/// Preferred for new QShield protocols — SHA-3's sponge construction provides
+/// Preferred for new QShield protocols -- SHA-3's sponge construction provides
 /// a higher security margin against quantum adversaries than SHA-2.
 ///
 /// # Errors
@@ -90,7 +90,7 @@ pub fn derive_key_256(
     Ok(okm)
 }
 
-// ── Internal helpers ────────────────────────────────────────────────────────
+// -- Internal helpers --------------------------------------------------------
 
 fn validate_output_len(len: usize, max: usize) -> Result<(), QShieldError> {
     if len == 0 {
@@ -106,7 +106,7 @@ fn validate_output_len(len: usize, max: usize) -> Result<(), QShieldError> {
     Ok(())
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────────
+// -- Tests -------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn output_is_zeroized_type() {
-        // Compile-time: return type is Zeroizing<Vec<u8>> — zeroize on drop
+        // Compile-time: return type is Zeroizing<Vec<u8>> -- zeroize on drop
         let _: Zeroizing<Vec<u8>> = hkdf_sha256(b"k", None, b"i", 32).expect("ok");
         let _: Zeroizing<[u8; 32]> = derive_key_256(b"k", None, b"i").expect("ok");
     }

@@ -12,7 +12,7 @@ use uuid::Uuid;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum QShieldError {
-    // ── Crypto (QS-1XX) ───────────────────────────────────────────────────────
+    // -- Crypto (QS-1XX) -------------------------------------------------------
     #[error("key generation failed for algorithm {algorithm}")]
     KeyGeneration {
         algorithm: &'static str,
@@ -44,7 +44,7 @@ pub enum QShieldError {
     #[error("unsupported algorithm: {name}")]
     UnsupportedAlgorithm { name: String },
 
-    // ── Transport (QS-2XX) ────────────────────────────────────────────────────
+    // -- Transport (QS-2XX) ----------------------------------------------------
     #[error("TLS handshake failed with {peer}")]
     TlsHandshake { peer: String, reason: String },
 
@@ -57,18 +57,18 @@ pub enum QShieldError {
         expiry: DateTime<Utc>,
     },
 
-    // ── Vault (QS-3XX) ────────────────────────────────────────────────────────
+    // -- Vault (QS-3XX) --------------------------------------------------------
     #[error("vault is locked")]
     VaultLocked,
 
-    /// Deliberately vague — must not reveal whether the key, ciphertext, or tag was wrong.
+    /// Deliberately vague -- must not reveal whether the key, ciphertext, or tag was wrong.
     #[error("decryption failed")]
     DecryptionFailed,
 
     #[error("item not found: {item_id}")]
     ItemNotFound { item_id: Uuid },
 
-    // ── Auth (QS-4XX) ─────────────────────────────────────────────────────────
+    // -- Auth (QS-4XX) ---------------------------------------------------------
     #[error("token has expired")]
     TokenExpired,
 
@@ -81,7 +81,7 @@ pub enum QShieldError {
     #[error("unauthorized")]
     Unauthorized,
 
-    // ── General ───────────────────────────────────────────────────────────────
+    // -- General ---------------------------------------------------------------
     #[error("configuration error: {message}")]
     Config { message: String },
 
@@ -91,7 +91,7 @@ pub enum QShieldError {
     #[error("IO error")]
     Io(#[from] std::io::Error),
 
-    /// For bugs — the message is logged server-side but never shown to clients.
+    /// For bugs -- the message is logged server-side but never shown to clients.
     #[error("internal error")]
     Internal { message: String },
 }

@@ -1,24 +1,24 @@
-//! QShield Key Envelope (QSKE) wire format — QS-113.
+//! QShield Key Envelope (QSKE) wire format -- QS-113.
 //!
 //! Canonical serialization for keys and signatures that cross language/network
 //! boundaries. Two representations are provided:
 //!
-//! 1. **Binary envelope** — compact, CRC32C-protected.
-//! 2. **PEM** — human-readable, base64-encoded envelope for config files and
+//! 1. **Binary envelope** -- compact, CRC32C-protected.
+//! 2. **PEM** -- human-readable, base64-encoded envelope for config files and
 //!    copy-paste.
 //!
 //! ## Binary wire layout
 //!
 //! ```text
-//! ┌──────────────────────────────────────────┐
-//! │ magic:       4 bytes  ("QSKE")           │
-//! │ version:     1 byte   (0x01)             │
-//! │ algorithm:   2 bytes  (big-endian u16)   │
-//! │ key_type:    1 byte                      │
-//! │ payload_len: 4 bytes  (big-endian u32)   │
-//! │ payload:     [payload_len bytes]         │
-//! │ checksum:    4 bytes  (CRC32C of above)  │
-//! └──────────────────────────────────────────┘
+//! +------------------------------------------+
+//! | magic:       4 bytes  ("QSKE")           |
+//! | version:     1 byte   (0x01)             |
+//! | algorithm:   2 bytes  (big-endian u16)   |
+//! | key_type:    1 byte                      |
+//! | payload_len: 4 bytes  (big-endian u32)   |
+//! | payload:     [payload_len bytes]         |
+//! | checksum:    4 bytes  (CRC32C of above)  |
+//! +------------------------------------------+
 //! ```
 //!
 //! The checksum covers every byte before it (magic through payload inclusive).
@@ -26,16 +26,16 @@
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use qshield_common::QShieldError;
 
-// ── Constants ──────────────────────────────────────────────────────────────
+// -- Constants --------------------------------------------------------------
 
 const MAGIC: &[u8; 4] = b"QSKE";
 const VERSION: u8 = 0x01;
-/// Bytes before payload: magic(4) + version(1) + algo(2) + key_type(1) + payload_len(4)
+/// Bytes before payload: magic(4) + version(1) + algo(2) + `key_type`(1) + `payload_len`(4)
 const HEADER_LEN: usize = 12;
 const CHECKSUM_LEN: usize = 4;
 const MIN_ENVELOPE_LEN: usize = HEADER_LEN + CHECKSUM_LEN; // zero-length payload
 
-// ── Algorithm codes ────────────────────────────────────────────────────────
+// -- Algorithm codes --------------------------------------------------------
 
 /// Identifies the cryptographic algorithm in an envelope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,7 +111,7 @@ impl AlgorithmCode {
     }
 }
 
-// ── Key type ───────────────────────────────────────────────────────────────
+// -- Key type ---------------------------------------------------------------
 
 /// Distinguishes how the payload bytes should be interpreted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -158,7 +158,7 @@ impl KeyType {
     }
 }
 
-// ── QskeEnvelope ──────────────────────────────────────────────────────────
+// -- QskeEnvelope ----------------------------------------------------------
 
 /// A parsed QSKE envelope.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,7 +172,7 @@ impl QskeEnvelope {
     /// Encode the envelope to binary wire format.
     ///
     /// # Panics
-    /// Panics if `payload.len()` exceeds `u32::MAX` (4 GB — won't happen in practice).
+    /// Panics if `payload.len()` exceeds `u32::MAX` (4 GB -- won't happen in practice).
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let payload_len = u32::try_from(self.payload.len()).expect("payload exceeds 4 GB");
@@ -196,7 +196,7 @@ impl QskeEnvelope {
     /// # Errors
     /// - `InvalidKeyLength` if the byte slice is too short.
     /// - `UnsupportedAlgorithm` for unknown algorithm/key-type codes.
-    /// - `DecryptionFailed` (checksum mismatch — integrity violation).
+    /// - `DecryptionFailed` (checksum mismatch -- integrity violation).
     pub fn decode(bytes: &[u8]) -> Result<Self, QShieldError> {
         if bytes.len() < MIN_ENVELOPE_LEN {
             return Err(QShieldError::InvalidKeyLength {
@@ -212,7 +212,7 @@ impl QskeEnvelope {
             });
         }
 
-        // Version check — accept only 0x01 for now.
+        // Version check -- accept only 0x01 for now.
         if bytes[4] != VERSION {
             return Err(QShieldError::UnsupportedAlgorithm {
                 name: format!("QSKE: unsupported envelope version 0x{:02X}", bytes[4]),
@@ -252,7 +252,7 @@ impl QskeEnvelope {
         })
     }
 
-    // ── PEM ───────────────────────────────────────────────────────────────
+    // -- PEM ---------------------------------------------------------------
 
     /// Encode to PEM format.
     ///
@@ -261,6 +261,9 @@ impl QskeEnvelope {
     /// <base64 of binary envelope, 64-char lines>
     /// -----END QSHIELD ML-KEM-768 PUBLIC KEY-----
     /// ```
+    ///
+    /// # Panics
+    /// Panics if the base64 output is not valid UTF-8 (cannot happen in practice).
     #[must_use]
     pub fn to_pem(&self) -> String {
         let label = self.pem_label();
@@ -310,7 +313,7 @@ impl QskeEnvelope {
         Self::decode(&envelope_bytes)
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────
+    // -- Private helpers ---------------------------------------------------
 
     fn pem_label(&self) -> String {
         format!(
@@ -321,7 +324,7 @@ impl QskeEnvelope {
     }
 }
 
-// ── Serde support ──────────────────────────────────────────────────────────
+// -- Serde support ----------------------------------------------------------
 //
 // Key types use custom Serialize/Deserialize implementations in their own
 // modules (kem.rs, dsa.rs, hybrid_sig.rs). Here we provide helpers they can
@@ -377,7 +380,7 @@ pub fn from_envelope_b64(
     Ok(env.payload)
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// -- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -391,7 +394,7 @@ mod tests {
         }
     }
 
-    // ── Binary encode/decode ──────────────────────────────────────────────
+    // -- Binary encode/decode ----------------------------------------------
 
     #[test]
     fn binary_round_trip() {
@@ -424,7 +427,7 @@ mod tests {
         assert_eq!(decoded, env);
     }
 
-    // ── CRC32C integrity ──────────────────────────────────────────────────
+    // -- CRC32C integrity --------------------------------------------------
 
     #[test]
     fn checksum_detects_single_bit_corruption() {
@@ -442,7 +445,7 @@ mod tests {
         assert!(QskeEnvelope::decode(&bytes).is_err());
     }
 
-    // ── Error paths ───────────────────────────────────────────────────────
+    // -- Error paths -------------------------------------------------------
 
     #[test]
     fn unknown_algorithm_code_returns_err() {
@@ -478,7 +481,7 @@ mod tests {
         assert!(QskeEnvelope::decode(&bytes[..bytes.len() - 1]).is_err());
     }
 
-    // ── PEM ───────────────────────────────────────────────────────────────
+    // -- PEM ---------------------------------------------------------------
 
     #[test]
     fn pem_round_trip() {
@@ -519,7 +522,7 @@ mod tests {
         assert!(QskeEnvelope::from_pem("-----BEGIN QSHIELD ML-KEM-768 PUBLIC KEY-----\n!!!invalid base64!!!\n-----END QSHIELD ML-KEM-768 PUBLIC KEY-----\n").is_err());
     }
 
-    // ── Envelope helpers ──────────────────────────────────────────────────
+    // -- Envelope helpers --------------------------------------------------
 
     #[test]
     fn envelope_b64_helpers_round_trip() {
@@ -541,7 +544,7 @@ mod tests {
         assert!(from_envelope_b64(&b64, AlgorithmCode::MlDsa65, KeyType::Secret).is_err());
     }
 
-    // ── Serde JSON for key types (QS-113 acceptance criterion) ───────────
+    // -- Serde JSON for key types (QS-113 acceptance criterion) -----------
 
     #[test]
     fn serde_json_kem_public_key() {

@@ -1,4 +1,4 @@
-//! QS-004 — Telemetry: Prometheus metrics, OpenTelemetry tracing, health types.
+//! QS-004 -- Telemetry: Prometheus metrics, OpenTelemetry tracing, health types.
 //!
 //! # Usage
 //!
@@ -18,7 +18,7 @@ use crate::QShieldError;
 
 static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// -- Config --------------------------------------------------------------------
 
 /// Telemetry initialisation configuration.
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ impl TelemetryConfig {
     }
 }
 
-// ── Metrics ───────────────────────────────────────────────────────────────────
+// -- Metrics -------------------------------------------------------------------
 
 /// Install the Prometheus metrics recorder globally and return a handle.
 ///
@@ -71,7 +71,7 @@ pub fn install_prometheus(service_name: &'static str) -> Result<PrometheusHandle
         })
 }
 
-// ── Tracing ───────────────────────────────────────────────────────────────────
+// -- Tracing -------------------------------------------------------------------
 
 /// Initialise the global `tracing` subscriber.
 ///
@@ -146,14 +146,14 @@ pub fn init_tracing(cfg: &TelemetryConfig) -> Result<(), QShieldError> {
 ///
 /// Call during graceful shutdown, before the process exits.
 pub fn shutdown_tracing() {
-    if let Some(provider) = TRACER_PROVIDER.get() {
-        if let Err(e) = provider.shutdown() {
-            tracing::warn!("tracer provider shutdown error: {e}");
-        }
+    if let Some(provider) = TRACER_PROVIDER.get()
+        && let Err(e) = provider.shutdown()
+    {
+        tracing::warn!("tracer provider shutdown error: {e}");
     }
 }
 
-// ── Health types ──────────────────────────────────────────────────────────────
+// -- Health types --------------------------------------------------------------
 
 /// Outcome of a health check.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -207,7 +207,7 @@ impl HealthResponse {
     }
 }
 
-// ── Axum handlers ─────────────────────────────────────────────────────────────
+// -- Axum handlers -------------------------------------------------------------
 
 /// Axum handler for `GET /metrics`. Renders Prometheus-format text output.
 ///
@@ -218,7 +218,8 @@ impl HealthResponse {
 ///     .route("/metrics", get(metrics_handler))
 ///     .with_state(handle)
 /// ```
-pub async fn metrics_handler(
+#[must_use]
+pub fn metrics_handler(
     axum::extract::State(handle): axum::extract::State<PrometheusHandle>,
 ) -> impl axum::response::IntoResponse {
     (
@@ -230,7 +231,7 @@ pub async fn metrics_handler(
     )
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// -- Tests ---------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

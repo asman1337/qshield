@@ -1,10 +1,10 @@
-//! Hybrid KEM: X25519 + ML-KEM — QS-103.
+//! Hybrid KEM: X25519 + ML-KEM -- QS-103.
 //!
 //! Combines a classical (X25519) ECDH with a post-quantum (ML-KEM-768 or
 //! ML-KEM-1024) KEM. The resulting shared secret is derived with HKDF-SHA-256:
 //!
 //! ```text
-//! ikm  = x25519_ss (32 B) ‖ pqc_ss (32 B)
+//! ikm  = x25519_ss (32 B) || pqc_ss (32 B)
 //! salt = b"QShield-Hybrid-KEM-v1"
 //! info = mode-label (e.g. b"X25519Kyber768")
 //! okm  = 32 bytes
@@ -35,13 +35,14 @@ const HKDF_SALT: &[u8] = b"QShield-Hybrid-KEM-v1";
 /// Supported hybrid KEM combinations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HybridMode {
-    /// X25519 + ML-KEM-768. Default — matches Chrome/Cloudflare deployment.
+    /// X25519 + ML-KEM-768. Default -- matches Chrome/Cloudflare deployment.
     X25519Kyber768,
     /// X25519 + ML-KEM-1024. For high-security environments.
     X25519Kyber1024,
 }
 
 impl HybridMode {
+    #[must_use]
     pub fn kem_level(self) -> KemLevel {
         match self {
             Self::X25519Kyber768 => KemLevel::Kem768,
@@ -162,7 +163,7 @@ impl Zeroize for HybridSecretKey {
     fn zeroize(&mut self) {
         self.classical.zeroize();
         self.pqc.zeroize();
-        // self.mode is not sensitive — not zeroed
+        // self.mode is not sensitive -- not zeroed
     }
 }
 
@@ -202,7 +203,7 @@ impl fmt::Debug for HybridCiphertext {
 
 /// Combine X25519 and PQC shared secrets with HKDF-SHA-256.
 ///
-/// IKM = `x25519_ss ‖ pqc_ss`. The concatenated IKM buffer is zeroized before
+/// IKM = `x25519_ss || pqc_ss`. The concatenated IKM buffer is zeroized before
 /// this function returns.
 pub(crate) fn hkdf_combine(x25519_ss: &[u8; 32], pqc_ss: &[u8; 32], info: &[u8]) -> [u8; 32] {
     let mut ikm = Zeroizing::new([0u8; 64]);
@@ -223,7 +224,7 @@ impl HybridSecretKey {
     /// Serialize to bytes: `[32 B classical key][pqc sk bytes]`.
     ///
     /// # Security
-    /// The returned bytes are highly sensitive — handle and erase with care.
+    /// The returned bytes are highly sensitive -- handle and erase with care.
     #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
         let classical = self.classical.to_bytes();
@@ -266,6 +267,7 @@ impl HybridSecretKey {
 ///
 /// # Errors
 /// Propagates any error from ML-KEM key generation (currently infallible).
+#[allow(clippy::similar_names)]
 pub fn hybrid_keygen(mode: HybridMode) -> Result<HybridKeyPair, QShieldError> {
     let classical_sk = StaticSecret::random_from_rng(OsRng);
     let classical_pk = X25519Public::from(&classical_sk);
@@ -295,10 +297,11 @@ pub fn hybrid_keygen(mode: HybridMode) -> Result<HybridKeyPair, QShieldError> {
 ///
 /// # Errors
 /// Propagates any error from ML-KEM encapsulation.
+#[allow(clippy::similar_names)]
 pub fn hybrid_encapsulate(
     pk: &HybridPublicKey,
 ) -> Result<(SharedSecret, HybridCiphertext), QShieldError> {
-    // Ephemeral X25519 — consumed by diffie_hellman, preventing reuse.
+    // Ephemeral X25519 -- consumed by diffie_hellman, preventing reuse.
     let ephemeral_sk = EphemeralSecret::random_from_rng(OsRng);
     let ephemeral_pk = X25519Public::from(&ephemeral_sk);
 
@@ -354,7 +357,7 @@ pub fn hybrid_decapsulate(
     })
 }
 
-/// Classical-only (X25519) key exchange — explicit fallback for peers that do
+/// Classical-only (X25519) key exchange -- explicit fallback for peers that do
 /// not support PQC.
 ///
 /// Returns `HybridResult` with `algorithm = NegotiatedAlgorithm::ClassicalOnly`

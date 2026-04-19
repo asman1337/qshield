@@ -1,4 +1,4 @@
-//! `qshield-common` — Shared types, error hierarchy, and logging for all QShield crates.
+//! `qshield-common` -- Shared types, error hierarchy, and logging for all QShield crates.
 //!
 //! # Security contract
 //! Key material, passwords, and secrets MUST NEVER appear in error messages or log output.

@@ -1,4 +1,4 @@
-// QShield Node.js bindings (QS-110) — NAPI-RS 3
+// QShield Node.js bindings (QS-110) -- NAPI-RS 3
 //
 // Exposes qshield-core's KEM, DSA, hybrid KEM, AEAD, and KDF functionality
 // to Node.js/TypeScript as a native addon (`@qshield/core`).
@@ -38,13 +38,13 @@ use qshield_core::{
     kem_keygen as core_kem_keygen,
 };
 
-// â”€â”€ Error helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Error helper ----------------------------------------------------------
 
 fn into_err(e: impl std::fmt::Display) -> napi::Error {
     napi::Error::from_reason(e.to_string())
 }
 
-// â”€â”€ Enums â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Enums -----------------------------------------------------------------
 
 /// ML-KEM security level.
 #[napi]
@@ -71,7 +71,7 @@ pub enum DsaLevel {
 /// Hybrid X25519 + ML-KEM mode.
 #[napi]
 pub enum HybridMode {
-    /// X25519 + ML-KEM-768. Default â€” matches Chrome/Cloudflare.
+    /// X25519 + ML-KEM-768. Default -- matches Chrome/Cloudflare.
     X25519Kyber768,
     /// X25519 + ML-KEM-1024. High-security environments.
     X25519Kyber1024,
@@ -100,7 +100,7 @@ fn to_core_hybrid(mode: HybridMode) -> CoreHybridMode {
     }
 }
 
-// â”€â”€ KEM classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- KEM classes -----------------------------------------------------------
 
 /// ML-KEM encapsulation (public) key.
 #[napi]
@@ -170,7 +170,7 @@ pub struct KemEncapsulateResult {
     pub ciphertext: Buffer,
 }
 
-// â”€â”€ KEM async tasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- KEM async tasks -------------------------------------------------------
 
 struct KemKeygenTask {
     level: CoreKemLevel,
@@ -278,7 +278,7 @@ pub fn kem_decapsulate(
     })
 }
 
-// â”€â”€ DSA classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- DSA classes -----------------------------------------------------------
 
 /// ML-DSA verifying (public) key.
 #[napi]
@@ -316,7 +316,7 @@ impl DsaKeypair {
     }
 }
 
-// â”€â”€ DSA async tasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- DSA async tasks -------------------------------------------------------
 
 struct DsaKeygenTask {
     level: CoreDsaLevel,
@@ -419,7 +419,7 @@ pub fn dsa_verify(
     })
 }
 
-// â”€â”€ Hybrid KEM classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Hybrid KEM classes ----------------------------------------------------
 
 /// Hybrid X25519 + ML-KEM public key (given to encapsulators).
 #[napi]
@@ -501,7 +501,7 @@ pub struct HybridEncapsulateResult {
     pub ciphertext: Buffer,
 }
 
-// â”€â”€ Hybrid KEM async tasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Hybrid KEM async tasks ------------------------------------------------
 
 struct HybridKeygenTask {
     mode: CoreHybridMode,
@@ -631,17 +631,9 @@ pub fn hybrid_decapsulate(
     })
 }
 
-// â”€â”€ AEAD functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- AEAD functions --------------------------------------------------------
 
-/// Encrypt data with AES-256-GCM.
-///
-/// - `key`: 32-byte key.
-/// - `nonce`: 12-byte nonce (use `generateNonce()` for random nonces).
-/// - `plaintext`: data to encrypt.
-/// - `aad`: optional additional authenticated data.
-///
-/// Returns ciphertext + 16-byte authentication tag.
-// ── AEAD byte-array helpers ──────────────────────────────────────────────
+// -- AEAD byte-array helpers --------------------------------------------------
 
 fn to_key32(buf: &Buffer) -> napi::Result<[u8; 32]> {
     buf.as_ref()
@@ -655,6 +647,14 @@ fn to_nonce12(buf: &Buffer) -> napi::Result<[u8; 12]> {
         .map_err(|_| napi::Error::from_reason("nonce must be exactly 12 bytes"))
 }
 
+/// Encrypt data with AES-256-GCM.
+///
+/// - `key`: 32-byte key.
+/// - `nonce`: 12-byte nonce (use `generateNonce()` for random nonces).
+/// - `plaintext`: data to encrypt.
+/// - `aad`: optional additional authenticated data.
+///
+/// Returns ciphertext + 16-byte authentication tag.
 #[napi(js_name = "aes256gcmEncrypt")]
 pub fn aes256gcm_encrypt(
     key: Buffer,
@@ -720,7 +720,7 @@ pub fn chacha20poly1305_decrypt(
     Ok(Buffer::from(pt))
 }
 
-// â”€â”€ KDF function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- KDF function ---------------------------------------------------------
 
 /// Derive key material with HKDF-SHA3-256.
 ///
@@ -742,7 +742,7 @@ pub fn hkdf_sha3_256(
     Ok(Buffer::from(okm.as_slice()))
 }
 
-// â”€â”€ Utility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Utility ---------------------------------------------------------------
 
 /// Return `n` cryptographically random bytes from the OS CSPRNG.
 #[napi(js_name = "randomBytes")]

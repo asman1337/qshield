@@ -1,0 +1,3 @@
+# Extend the default clippy doc-valid-idents list with project-specific names.
+# ".." means "keep the built-in defaults and add these on top".
+doc-valid-idents = ["QShield", "OTel", "OpenTelemetry", "UUIDv7", "RustCrypto", ".."]
