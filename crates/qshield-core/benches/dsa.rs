@@ -84,4 +84,19 @@ fn bench_dsa_verify(c: &mut Criterion) {
 }
 
 criterion_group!(dsa_benches, bench_dsa_keygen, bench_dsa_sign, bench_dsa_verify);
-criterion_main!(dsa_benches);
+
+// ML-DSA uses large stack frames; spawn with 64 MB to avoid overflow on Windows.
+fn main() {
+    std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(|| {
+            let mut c = criterion::Criterion::default().configure_from_args();
+            bench_dsa_keygen(&mut c);
+            bench_dsa_sign(&mut c);
+            bench_dsa_verify(&mut c);
+            c.final_summary();
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
