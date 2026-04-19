@@ -21,8 +21,12 @@ tracing.workspace = true
 ml-kem = { version = "0.2.3", features = ["zeroize"] }
 ml-dsa = { version = "0.0.4", features = ["zeroize"] }
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
+ed25519-dalek.workspace = true
 hkdf = "0.12"
 sha2 = "0.10"
+sha3.workspace = true
+aes-gcm.workspace = true
+chacha20poly1305.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

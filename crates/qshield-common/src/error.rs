@@ -35,6 +35,12 @@ pub enum QShieldError {
     #[error("invalid key length: expected {expected}, got {actual}")]
     InvalidKeyLength { expected: usize, actual: usize },
 
+    #[error("key derivation failed")]
+    KeyDerivation { reason: &'static str },
+
+    #[error("invalid nonce length: expected {expected}, got {actual}")]
+    InvalidNonce { expected: usize, actual: usize },
+
     #[error("unsupported algorithm: {name}")]
     UnsupportedAlgorithm { name: String },
 
@@ -101,6 +107,8 @@ impl QShieldError {
             Self::SignatureCreation { .. } => "SIGNATURE_CREATION_FAILED",
             Self::SignatureVerification { .. } => "SIGNATURE_VERIFICATION_FAILED",
             Self::InvalidKeyLength { .. } => "INVALID_KEY_LENGTH",
+            Self::KeyDerivation { .. } => "KEY_DERIVATION_FAILED",
+            Self::InvalidNonce { .. } => "INVALID_NONCE",
             Self::UnsupportedAlgorithm { .. } => "UNSUPPORTED_ALGORITHM",
             Self::TlsHandshake { .. } => "TLS_HANDSHAKE_FAILED",
             Self::UpstreamUnreachable { .. } => "UPSTREAM_UNREACHABLE",

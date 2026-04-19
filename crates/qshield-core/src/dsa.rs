@@ -180,6 +180,11 @@ impl DsaSignature {
     pub fn level(&self) -> DsaLevel {
         self.level
     }
+
+    /// Construct from raw bytes and a known level (crate-internal use only).
+    pub(crate) fn from_raw(bytes: Vec<u8>, level: DsaLevel) -> Self {
+        Self { bytes, level }
+    }
 }
 
 // ── Core API ───────────────────────────────────────────────────────────────

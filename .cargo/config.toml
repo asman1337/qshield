@@ -1,0 +1,5 @@
+[env]
+# ML-DSA operations (key gen, sign, verify) create large polynomial matrices
+# (~20 KB) per stack frame in debug builds. Raise the minimum thread stack size
+# so that tests involving these operations don't overflow.
+RUST_MIN_STACK = "16777216"   # 16 MB
