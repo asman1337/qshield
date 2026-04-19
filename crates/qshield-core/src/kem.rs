@@ -12,7 +12,7 @@ use ml_kem::{
     MlKem768Params,
 };
 use rand_core::OsRng;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use qshield_common::QShieldError;
 
@@ -52,10 +52,10 @@ pub struct KemPublicKey {
     level: KemLevel,
 }
 
-/// ML-KEM decapsulation (secret) key. Zeroized on drop via the `zeroize`
-/// feature of the `ml-kem` crate.
+/// ML-DSA decapsulation (secret) key. Zeroized on drop via `Option::take()`
+/// which triggers `DecapsulationKey`'s `ZeroizeOnDrop` (ml-kem zeroize feature).
 pub struct KemSecretKey {
-    inner: DkInner,
+    inner: Option<DkInner>,
     level: KemLevel,
 }
 
@@ -73,7 +73,8 @@ pub struct KemCiphertext {
     level: KemLevel,
 }
 
-/// A 32-byte shared secret. Zeroized on drop.
+/// A 32-byte shared secret. Zeroized on drop via `ZeroizeOnDrop` derive.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SharedSecret([u8; 32]);
 
 // -- Private inner enums ----------------------------------------------------
@@ -110,11 +111,23 @@ fn ss_to_arr(ss: &[u8]) -> [u8; 32] {
 
 // -- Drop / zeroize ---------------------------------------------------------
 
-impl Drop for SharedSecret {
-    fn drop(&mut self) {
-        self.0.zeroize();
+// SharedSecret uses #[derive(Zeroize, ZeroizeOnDrop)] — see its definition.
+
+impl Zeroize for KemSecretKey {
+    fn zeroize(&mut self) {
+        // `Option::take` moves the inner `DecapsulationKey<P>` out and drops
+        // it here, triggering ml-kem's `ZeroizeOnDrop` — no keygen needed.
+        drop(self.inner.take());
     }
 }
+
+impl Drop for KemSecretKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for KemSecretKey {}
 
 // -- Debug impls (security: never print key material) ----------------------
 
@@ -215,7 +228,7 @@ impl KemSecretKey {
     /// The returned bytes are sensitive -- handle and erase with care.
     #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
-        match &self.inner {
+        match self.inner.as_ref().expect("KemSecretKey already zeroized") {
             DkInner::Kem512(dk) => encoded_to_vec(dk),
             DkInner::Kem768(dk) => encoded_to_vec(dk),
             DkInner::Kem1024(dk) => encoded_to_vec(dk),
@@ -269,6 +282,12 @@ impl SharedSecret {
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
+
+    /// Construct from raw bytes. Crate-internal — callers must ensure bytes
+    /// are already cryptographically strong and will be zeroized on drop.
+    pub(crate) fn from_raw(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
 }
 
 // -- Core API ---------------------------------------------------------------
@@ -297,7 +316,7 @@ pub fn kem_keygen(level: KemLevel) -> Result<KemKeyPair, QShieldError> {
     };
     Ok(KemKeyPair {
         public_key: KemPublicKey { inner: ek_inner, level },
-        secret_key: KemSecretKey { inner: dk_inner, level },
+        secret_key: KemSecretKey { inner: Some(dk_inner), level },
     })
 }
 
@@ -347,7 +366,7 @@ pub fn kem_decapsulate(sk: &KemSecretKey, ct: &KemCiphertext) -> Result<SharedSe
     if sk.level != ct.level {
         return Err(QShieldError::Decapsulation { algorithm: "ML-KEM (level mismatch)" });
     }
-    match &sk.inner {
+    match sk.inner.as_ref().expect("KemSecretKey already zeroized") {
         DkInner::Kem512(dk) => {
             #[allow(deprecated)]
             let ct_arr = ml_kem::array::Array::from_slice(&ct.bytes);

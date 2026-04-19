@@ -12,6 +12,7 @@ use ml_dsa::{
     MlDsaParams, Signature, SigningKey, VerifyingKey,
 };
 use rand_core::OsRng;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use qshield_common::QShieldError;
 
@@ -45,9 +46,10 @@ impl DsaLevel {
     }
 }
 
-/// ML-DSA key pair (signing + verifying). Signing key is zeroized on drop.
+/// ML-DSA key pair (signing + verifying). Signing key is zeroized on drop
+/// via `Option::take()` which triggers `SigningKey`'s `ZeroizeOnDrop`.
 pub struct DsaKeyPair {
-    inner: KpInner,
+    inner: Option<KpInner>,
     level: DsaLevel,
 }
 
@@ -72,6 +74,24 @@ enum KpInner {
     Dsa65(KeyPair<MlDsa65>),
     Dsa87(KeyPair<MlDsa87>),
 }
+
+// ── Drop / zeroize ──────────────────────────────────────────────────────────────────────────
+
+impl Zeroize for DsaKeyPair {
+    fn zeroize(&mut self) {
+        // `Option::take` moves the inner `KeyPair<P>` out and drops it here,
+        // triggering `SigningKey<P>`'s `ZeroizeOnDrop` — no keygen needed.
+        drop(self.inner.take());
+    }
+}
+
+impl Drop for DsaKeyPair {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for DsaKeyPair {}
 
 // ── Debug impls (security: never print key material) ──────────────────────
 
@@ -122,7 +142,7 @@ impl DsaKeyPair {
     /// Extract the verifying (public) key, serialized to bytes.
     #[must_use]
     pub fn verifying_key(&self) -> DsaVerifyingKey {
-        let bytes = match &self.inner {
+        let bytes = match self.inner.as_ref().expect("DsaKeyPair already zeroized") {
             KpInner::Dsa44(kp) => vk_to_bytes(kp.verifying_key()),
             KpInner::Dsa65(kp) => vk_to_bytes(kp.verifying_key()),
             KpInner::Dsa87(kp) => vk_to_bytes(kp.verifying_key()),
@@ -177,7 +197,7 @@ pub fn dsa_keygen(level: DsaLevel) -> Result<DsaKeyPair, QShieldError> {
         DsaLevel::Dsa65 => KpInner::Dsa65(MlDsa65::key_gen(&mut rng)),
         DsaLevel::Dsa87 => KpInner::Dsa87(MlDsa87::key_gen(&mut rng)),
     };
-    Ok(DsaKeyPair { inner, level })
+    Ok(DsaKeyPair { inner: Some(inner), level })
 }
 
 /// Sign `message` using hedged (randomized) ML-DSA.
@@ -189,7 +209,7 @@ pub fn dsa_keygen(level: DsaLevel) -> Result<DsaKeyPair, QShieldError> {
 /// Returns `SignatureCreation` on internal failure.
 pub fn dsa_sign(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShieldError> {
     let mut rng = OsRng;
-    let (bytes, level) = match &kp.inner {
+    let (bytes, level) = match kp.inner.as_ref().expect("DsaKeyPair already zeroized") {
         KpInner::Dsa44(pair) => {
             let sk: &SigningKey<MlDsa44> = pair.signing_key();
             let sig = sk
@@ -220,7 +240,7 @@ pub fn dsa_sign(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShield
 /// # Errors
 /// Returns `SignatureCreation` on internal failure.
 pub fn dsa_sign_deterministic(kp: &DsaKeyPair, message: &[u8]) -> Result<DsaSignature, QShieldError> {
-    let (bytes, level) = match &kp.inner {
+    let (bytes, level) = match kp.inner.as_ref().expect("DsaKeyPair already zeroized") {
         KpInner::Dsa44(pair) => {
             let sk: &SigningKey<MlDsa44> = pair.signing_key();
             let sig = sk

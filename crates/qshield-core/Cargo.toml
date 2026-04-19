@@ -20,10 +20,14 @@ thiserror.workspace = true
 tracing.workspace = true
 ml-kem = { version = "0.2.3", features = ["zeroize"] }
 ml-dsa = { version = "0.0.4", features = ["zeroize"] }
+x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
+hkdf = "0.12"
+sha2 = "0.10"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 hex = "0.4"
+static_assertions = "1"
 
 [[bench]]
 name = "kem"
